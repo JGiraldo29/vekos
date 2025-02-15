@@ -18,6 +18,9 @@ digest = { version = "0.10.7", default-features = false }
 blake3 = { version = "1.5", default-features = false, features = ["pure"] }
 rs_merkle = { version = "1.4", default-features = false }
 
+[build-dependencies]
+xbuild = "0.2.0"
+
 [package.metadata.bootimage]
 test-args = [
     "-device", "isa-debug-exit,iobase=0xf4,iosize=0x04",

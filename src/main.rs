@@ -30,9 +30,9 @@ pub mod signals;
 pub mod tty;
 pub mod graphics_hal;
 pub mod page_table_cache;
+use alloc::string::ToString;
 use x86_64::instructions::port::Port;
 use spin::Mutex;
-use alloc::string::String;
 use crate::fs::FILESYSTEM;
 use crate::fs::FileSystem;
 use crate::verification::VERIFICATION_REGISTRY;
@@ -369,7 +369,7 @@ fn kernel_main(boot_info: &'static BootInfo) -> ! {
     if let Some(mm) = mm_lock.as_mut() {
        match Process::new(mm) {
            Ok(mut init_process) => {
-               init_process.current_dir = String::from("/");
+               init_process.current_dir = "/".to_string();
                serial_println!("Loading VETests program...");
                if let Ok(program_data) = FILESYSTEM.lock().read_file("/programs/VETests") {
                    if let Err(e) = init_process.load_program(&program_data, mm) {
