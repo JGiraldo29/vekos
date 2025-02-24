@@ -21,10 +21,15 @@ use x86_64::{
 use x86_64::instructions::interrupts;
 use crate::serial_println;
 use core::slice;
+use crate::FILESYSTEM;
+use crate::fs::normalize_path;
 use x86_64::registers::model_specific::Msr;
 use core::arch::naked_asm;
 use core::arch::asm;
+use crate::fs::validate_path;
 use crate::vga_buffer::WRITER;
+use alloc::string::String;
+use crate::process::PROCESS_LIST;
 use crate::tty;
 use crate::vga_buffer::ColorCode;
 use crate::MEMORY_MANAGER;
@@ -67,18 +72,22 @@ pub enum SyscallNumber {
     Read = 0,
     Write = 1,
     Exit = 60,
+    Getcwd = 79,
+    Chdir = 80,
 }
 
 type SyscallFn = fn(u64, u64, u64, u64, u64, u64) -> u64;
 
 lazy_static! {
     static ref SYSCALL_TABLE: Vec<Option<SyscallFn>> = {
-        let mut table = Vec::with_capacity(64);
-        table.resize(64, None);
+        let mut table = Vec::with_capacity(256);
+        table.resize(256, None);
         
         table[SyscallNumber::Read as usize] = Some(sys_read as fn(u64, u64, u64, u64, u64, u64) -> u64);
         table[SyscallNumber::Write as usize] = Some(sys_write as fn(u64, u64, u64, u64, u64, u64) -> u64);
         table[SyscallNumber::Exit as usize] = Some(sys_exit as fn(u64, u64, u64, u64, u64, u64) -> u64);
+        table[SyscallNumber::Getcwd as usize] = Some(sys_getcwd as fn(u64, u64, u64, u64, u64, u64) -> u64);
+        table[SyscallNumber::Chdir as usize] = Some(sys_chdir as fn(u64, u64, u64, u64, u64, u64) -> u64);
         
         table
     };
@@ -140,39 +149,16 @@ pub extern "C" fn dispatch_syscall() {
 }
 
 fn is_valid_user_addr(addr: u64, size: u64) -> bool {
-    let prog_valid = addr >= 0x400000 && addr + size <= 0x800000;
+    let prog_valid = addr >= 0x400000 && addr + size <= 0x900000;
     
     let stack_start = 0x7fff00000000;
     let stack_end   = 0x800000000000;
     let stack_valid = addr >= stack_start && addr + size <= stack_end;
     
+    serial_println!("Validating address {:#x} with size {}", addr, size);
+    serial_println!("prog_valid: {}, stack_valid: {}", prog_valid, stack_valid);
+    
     prog_valid || stack_valid
-}
-
-fn sys_write(fd: u64, buf: u64, count: u64, _: u64, _: u64, _: u64) -> u64 {
-    serial_println!("sys_write: fd={}, buf={:#x}, count={}", fd, buf, count);
-
-    if fd != 1 && fd != 2 {
-        return u64::MAX;
-    }
-
-    if !is_valid_user_addr(buf, count) {
-        serial_println!("ERROR: Invalid buffer range: {:#x}-{:#x}", buf, buf + count);
-        return u64::MAX;
-    }
-
-    let slice = unsafe {
-        let buffer_ptr = buf as *const u8;
-        if buffer_ptr.is_null() {
-            serial_println!("Null buffer!");
-            return u64::MAX;
-        }
-        serial_println!("Buffer at {:#x}", buf);
-        core::slice::from_raw_parts(buffer_ptr, count as usize)
-    };
-    serial_println!("Buffer contents: {:?}", slice);
-
-    tty::write_tty(slice) as u64
 }
 
 fn sys_read(fd: u64, buf: u64, count: u64, _: u64, _: u64, _: u64) -> u64 {
@@ -213,9 +199,144 @@ fn sys_read(fd: u64, buf: u64, count: u64, _: u64, _: u64, _: u64) -> u64 {
     }
 }
 
+fn sys_write(fd: u64, buf: u64, count: u64, _: u64, _: u64, _: u64) -> u64 {
+    serial_println!("sys_write: fd={}, buf={:#x}, count={}", fd, buf, count);
+
+    if fd != 1 && fd != 2 {
+        return u64::MAX;
+    }
+
+    if !is_valid_user_addr(buf, count) {
+        serial_println!("ERROR: Invalid buffer range: {:#x}-{:#x}", buf, buf + count);
+        return u64::MAX;
+    }
+
+    let slice = unsafe {
+        let buffer_ptr = buf as *const u8;
+        if buffer_ptr.is_null() {
+            serial_println!("Null buffer!");
+            return u64::MAX;
+        }
+        serial_println!("Buffer at {:#x}", buf);
+        core::slice::from_raw_parts(buffer_ptr, count as usize)
+    };
+    serial_println!("Buffer contents: {:?}", slice);
+
+    tty::write_tty(slice) as u64
+}
+
 fn sys_exit(_code: u64, _: u64, _: u64, _: u64, _: u64, _: u64) -> u64 {
     loop {
         x86_64::instructions::hlt();
+    }
+}
+
+fn sys_getcwd(buf: u64, size: u64, _: u64, _: u64, _: u64, _: u64) -> u64 {
+    serial_println!("sys_getcwd: buf={:#x}, size={}", buf, size);
+
+    if buf == 0 {
+        return u64::MAX;
+    }
+
+    let current_dir = {
+        let process_list = PROCESS_LIST.lock();
+        process_list.current()
+            .map(|p| p.current_dir.clone())
+            .unwrap_or_else(|| String::from("/"))
+    };
+
+    if size < (current_dir.len() + 1).try_into().unwrap() {
+        return u64::MAX;
+    }
+
+    let addr_valid = buf >= 0x400000 && buf + size <= 0x800000;
+    if !addr_valid {
+        serial_println!("Invalid buffer address range: {:#x}", buf);
+        return u64::MAX;
+    }
+
+    unsafe {
+        let buffer_ptr = buf as *mut u8;
+        core::ptr::copy_nonoverlapping(
+            current_dir.as_ptr(),
+            buffer_ptr,
+            current_dir.len()
+        );
+        *buffer_ptr.add(current_dir.len()) = 0;
+    }
+
+    current_dir.len() as u64
+}
+
+fn sys_chdir(path: u64, _: u64, _: u64, _: u64, _: u64, _: u64) -> u64 {
+    serial_println!("sys_chdir: path={:#x}", path);
+
+    if path == 0 {
+        serial_println!("Path is null");
+        return u64::MAX;
+    }
+
+    if !is_valid_user_addr(path, 1) {
+        serial_println!("Invalid path address: {:#x}", path);
+        return u64::MAX;
+    }
+
+    let path_str = unsafe {
+        let mut len: usize = 0;
+        while len < 4096 {
+            if *((path + len as u64) as *const u8) == 0 {
+                break;
+            }
+            len += 1;
+        }
+        if len == 4096 {
+            serial_println!("Path too long");
+            return u64::MAX;
+        }
+        let slice = core::slice::from_raw_parts(path as *const u8, len);
+        serial_println!("Path content: {:?}", slice);
+        core::str::from_utf8_unchecked(slice)
+    };
+    serial_println!("Path string: {}", path_str);
+
+    let stats = {
+        let mut fs = match FILESYSTEM.try_lock() {
+            Some(fs) => fs,
+            None => {
+                serial_println!("Filesystem lock busy");
+                return u64::MAX;
+            }
+        };
+        serial_println!("Filesystem locked, validating path");
+        match validate_path(&mut *fs, path_str) {
+            Ok(stats) => {
+                if !stats.is_directory {
+                    serial_println!("Not a directory");
+                    return u64::MAX;
+                }
+                Some(stats)
+            }
+            Err(e) => {
+                serial_println!("Path validation failed: {:?}", e);
+                None
+            }
+        }
+    };
+
+    if stats.is_none() {
+        return u64::MAX;
+    }
+
+    let mut process_list = PROCESS_LIST.lock();
+    if let Some(current) = process_list.current_mut() {
+        let normalized = normalize_path(path_str);
+        serial_println!("Normalized path: {}", normalized);
+        current.current_dir = normalized.into();
+        serial_println!("Directory changed successfully");
+        0
+    } else {
+        serial_println!("No current process found");
+        u64::MAX
     }
 }
 

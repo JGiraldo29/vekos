@@ -784,13 +784,6 @@ lazy_static! {
 }
 
 pub fn init() {
-    {
-        let fs = FILESYSTEM.lock();
-        if fs.is_initialized() {
-            return;
-        }
-    }
-
     let mut fs = FILESYSTEM.lock();
     if fs.is_initialized() {
         return;

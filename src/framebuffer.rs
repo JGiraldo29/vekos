@@ -14,502 +14,692 @@
 * limitations under the License.
 */
 
-use core::sync::atomic::{AtomicU64, Ordering};
-use x86_64::VirtAddr;
-use alloc::vec::Vec;
-use crate::serial_println;
-use x86_64::structures::paging::PageTableFlags;
-use x86_64::instructions::port::Port;
-use crate::memory::{MemoryError, MemoryManager};
-use alloc::vec;
+use core::ptr::write_volatile;
 use spin::Mutex;
-use core::sync::atomic::AtomicBool;
-use crate::{
-    verification::{Hash, OperationProof, Verifiable, VerificationError},
-    hash,
-};
- 
+use crate::serial_println;
+use lazy_static::lazy_static;
+use alloc::vec;
+use alloc::vec::Vec;
+use core::ptr::read_volatile;
+use micromath::F32Ext;
+use x86_64::instructions::port::Port;
+
+const VGA_WIDTH: usize = 320;
+const VGA_HEIGHT: usize = 200;
+const VGA_BUFFER_ADDRESS: usize = 0xA0000;
+const VGA_BUFFER_SIZE: usize = VGA_WIDTH * VGA_HEIGHT;
+
+const VGA_MISC_WRITE: u16 = 0x3C2;
+const VGA_CRTC_INDEX: u16 = 0x3D4;
+const VGA_CRTC_DATA: u16 = 0x3D5;
+const VGA_SEQ_INDEX: u16 = 0x3C4;
+const VGA_SEQ_DATA: u16 = 0x3C5;
+const VGA_GC_INDEX: u16 = 0x3CE;
+const VGA_GC_DATA: u16 = 0x3CF;
+const VGA_AC_INDEX: u16 = 0x3C0;
+const VGA_AC_WRITE: u16 = 0x3C0;
+const VGA_AC_READ: u16 = 0x3C1;
+const VGA_INSTAT_READ: u16 = 0x3DA;
+
+static mut BACK_BUFFER: [u8; VGA_BUFFER_SIZE] = [0; VGA_BUFFER_SIZE];
+
 #[derive(Debug, Clone, Copy)]
 #[repr(C)]
-pub struct FramebufferInfo {
-    pub width: u32,
-    pub height: u32,
-    pub pitch: u32,
-    pub bpp: u8,
-    pub memory_model: u8,
-    pub red_mask_size: u8,
-    pub red_mask_pos: u8,
-    pub green_mask_size: u8,
-    pub green_mask_pos: u8,
-    pub blue_mask_size: u8,
-    pub blue_mask_pos: u8,
-    pub page_flip_supported: bool,
-    pub current_page: u8,
+pub struct Pixel {
+    pub index: u8,
 }
 
 pub struct Framebuffer {
-    info: FramebufferInfo,
-    buffer: VirtAddr,
-    size: usize,
-    state_hash: AtomicU64,
-    double_buffer: Option<Vec<u8>>,
-    swap_in_progress: AtomicBool,
-    front_buffer_hash: AtomicU64,
-    back_buffer_hash: AtomicU64,
-    vsync_enabled: AtomicBool,
-    vga_crt_port: Mutex<Port<u16>>,
-    page1_buffer: VirtAddr,
-    page2_buffer: VirtAddr,
-    active_buffer: AtomicU64,
-    flip_in_progress: AtomicBool,
-    sync_pending: AtomicBool,
-    vsync_occurred: AtomicBool,
+    front_buffer: *mut u8,
+    back_buffer: *mut u8,
+    double_buffering: bool,
 }
+
+unsafe impl Send for Framebuffer {}
+unsafe impl Sync for Framebuffer {}
 
 impl Framebuffer {
-    pub fn new(
-        mut info: FramebufferInfo,
-        physical_buffer: u64,
-        memory_manager: &mut MemoryManager
-    ) -> Result<Self, MemoryError> {
-        let size = (info.pitch as usize * info.height as usize) as usize;
-        let pages = (size + 4095) / 4096; 
-        let buffer = VirtAddr::new(0xfd000000);
-
-        let flags = PageTableFlags::PRESENT 
-            | PageTableFlags::WRITABLE 
-            | PageTableFlags::NO_CACHE
-            | PageTableFlags::WRITE_THROUGH;
-
-        let result_buffer = if info.page_flip_supported {
-            let buffer2_addr = VirtAddr::new(0xfd000000 + size as u64);
-            let mut mapping_succeeded = true;
-
-            let memory_required = size * 2;
-            if !memory_manager.verify_memory_requirements(memory_required) {
-                serial_println!("Warning: Insufficient memory for double buffered framebuffer");
-                info.page_flip_supported = false;
-                Ok(Framebuffer {
-                    info,
-                    buffer,
-                    size,
-                    state_hash: AtomicU64::new(0),
-                    double_buffer: None, 
-                    swap_in_progress: AtomicBool::new(false),
-                    front_buffer_hash: AtomicU64::new(0),
-                    back_buffer_hash: AtomicU64::new(0),
-                    vsync_enabled: AtomicBool::new(true),
-                    vga_crt_port: Mutex::new(Port::new(0x3D4)),
-                    page1_buffer: buffer,
-                    page2_buffer: buffer,
-                    active_buffer: AtomicU64::new(buffer.as_u64()),
-                    flip_in_progress: AtomicBool::new(false),
-                    sync_pending: AtomicBool::new(false),
-                    vsync_occurred: AtomicBool::new(false),
-                })
-            } else {
-
-                const CHUNK_SIZE: usize = 64;
-                for chunk_start in (0..pages).step_by(CHUNK_SIZE) {
-                    let chunk_pages = core::cmp::min(CHUNK_SIZE, pages - chunk_start);
-                    
-                    for i in 0..chunk_pages {
-                        let page_idx = chunk_start + i;
-                        let phys_addr = physical_buffer + ((pages + page_idx) * 4096) as u64;
-                        let page = x86_64::structures::paging::Page::containing_address(
-                            buffer2_addr + (page_idx * 4096) as u64
-                        );
-                        let frame = x86_64::structures::paging::PhysFrame::containing_address(
-                            x86_64::PhysAddr::new(phys_addr)
-                        );
-                        
-                        unsafe {
-                            match memory_manager.map_page(page, frame, flags) {
-                                Ok(_) => continue,
-                                Err(e) => {
-                                    serial_println!("Failed to map page at index {}: {:?}", page_idx, e);
-                                    mapping_succeeded = false;
-
-                                    for j in 0..page_idx {
-                                        let cleanup_page = x86_64::structures::paging::Page::containing_address(
-                                            buffer2_addr + (j * 4096) as u64
-                                        );
-                                        if let Err(e) = memory_manager.unmap_page(cleanup_page) {
-                                            serial_println!("Warning: Failed to unmap page during cleanup: {:?}", e);
-                                        }
-                                    }
-                                    break;
-                                }
-                            }
-                        }
-                    }
-                    
-                    if !mapping_succeeded {
-                        break;
-                    }
-                }
-    
-                if mapping_succeeded {
-                    unsafe {
-                        x86_64::instructions::tlb::flush_all();
-                    }
-                    Ok(Framebuffer {
-                        info,
-                        buffer,
-                        size,
-                        state_hash: AtomicU64::new(0),
-                        double_buffer: None,
-                        swap_in_progress: AtomicBool::new(false),
-                        front_buffer_hash: AtomicU64::new(0),
-                        back_buffer_hash: AtomicU64::new(0),
-                        vsync_enabled: AtomicBool::new(true),
-                        vga_crt_port: Mutex::new(Port::new(0x3D4)),
-                        page1_buffer: buffer,
-                        page2_buffer: buffer2_addr,
-                        active_buffer: AtomicU64::new(buffer.as_u64()),
-                        flip_in_progress: AtomicBool::new(false),
-                        sync_pending: AtomicBool::new(false),
-                        vsync_occurred: AtomicBool::new(false),
-                    })
-                } else {
-                    serial_println!("Warning: Failed to map second framebuffer, falling back to single buffer");
-                    info.page_flip_supported = false;
-                    Ok(Framebuffer {
-                        info,
-                        buffer,
-                        size,
-                        state_hash: AtomicU64::new(0),
-                        double_buffer: None,
-                        swap_in_progress: AtomicBool::new(false),
-                        front_buffer_hash: AtomicU64::new(0),
-                        back_buffer_hash: AtomicU64::new(0),
-                        vsync_enabled: AtomicBool::new(true),
-                        vga_crt_port: Mutex::new(Port::new(0x3D4)),
-                        page1_buffer: buffer,
-                        page2_buffer: buffer,
-                        active_buffer: AtomicU64::new(buffer.as_u64()),
-                        flip_in_progress: AtomicBool::new(false),
-                        sync_pending: AtomicBool::new(false),
-                        vsync_occurred: AtomicBool::new(false),
-                    })
-                }
+    pub fn new() -> Self {
+        unsafe {
+            Self {
+                front_buffer: VGA_BUFFER_ADDRESS as *mut u8,
+                back_buffer: BACK_BUFFER.as_mut_ptr(),
+                double_buffering: false,
             }
-        } else {
-            Ok(Framebuffer {
-                info,
-                buffer,
-                size,
-                state_hash: AtomicU64::new(0),
-                double_buffer: None,
-                swap_in_progress: AtomicBool::new(false),
-                front_buffer_hash: AtomicU64::new(0),
-                back_buffer_hash: AtomicU64::new(0),
-                vsync_enabled: AtomicBool::new(true),
-                vga_crt_port: Mutex::new(Port::new(0x3D4)),
-                page1_buffer: buffer,
-                page2_buffer: buffer,
-                active_buffer: AtomicU64::new(buffer.as_u64()),
-                flip_in_progress: AtomicBool::new(false),
-                sync_pending: AtomicBool::new(false),
-                vsync_occurred: AtomicBool::new(false),
-            })
-        };
-    
-        result_buffer
-    }
-
-    pub fn init_double_buffering(&mut self) -> Result<(), &'static str> {
-        let buffer_size = (self.info.pitch as usize * self.info.height as usize) as usize;
-
-        if !self.check_buffer_alignment(VirtAddr::new(self.buffer.as_u64()), buffer_size) {
-            return Err("Buffer alignment check failed");
-        }
-        
-        self.double_buffer = Some(vec![0; buffer_size]);
-        Ok(())
-    }
-
-    fn check_buffer_alignment(&self, addr: VirtAddr, size: usize) -> bool {
-        if !addr.is_aligned(4096u64) {
-            serial_println!("Error: Buffer address not page aligned");
-            return false;
-        }
-
-        if size % 4096 != 0 {
-            serial_println!("Error: Buffer size not page aligned");
-            return false;
-        }
-
-        if addr.as_u64().checked_add(size as u64).is_none() {
-            serial_println!("Error: Buffer address range overflow");
-            return false;
-        }
-    
-        true
-    }
-    
-    pub fn handle_vsync(&mut self) {
-        self.vsync_occurred.store(true, Ordering::SeqCst);
-        if self.sync_pending.load(Ordering::SeqCst) {
-            self.sync_pending.store(false, Ordering::SeqCst);
-        }
-    }
-    
-    pub fn wait_for_vsync(&self) -> Result<(), VerificationError> {
-        if !self.vsync_enabled.load(Ordering::SeqCst) {
-            return Ok(());
-        }
-    
-        self.vsync_occurred.store(false, Ordering::SeqCst);
-
-        while !self.vsync_occurred.load(Ordering::SeqCst) {
-            core::hint::spin_loop();
-        }
-        
-        Ok(())
-    }
-
-    pub fn write_pixel(&mut self, x: u32, y: u32, color: u32) -> Result<(), &'static str> {
-        if x >= self.info.width || y >= self.info.height {
-            return Err("Pixel coordinates out of bounds");
-        }
-    
-        let offset = (y * self.info.pitch + x * (self.info.bpp as u32 / 8)) as usize;
-        let current_buffer = self.get_active_buffer();
-        let draw_buffer = if current_buffer == self.page1_buffer {
-            self.page2_buffer
-        } else {
-            self.page1_buffer
-        };
-    
-        if offset + 3 < self.size {
-            unsafe {
-                let ptr = (draw_buffer + offset).as_mut_ptr();
-                *ptr = (color >> 16) as u8;
-                *ptr.add(1) = (color >> 8) as u8;
-                *ptr.add(2) = color as u8;
-                *ptr.add(3) = (color >> 24) as u8;
-            }
-            Ok(())
-        } else {
-            Err("Buffer overflow")
         }
     }
 
-    pub fn swap_buffers(&mut self) -> Result<Hash, VerificationError> {
-        if self.swap_in_progress.load(Ordering::SeqCst) {
-            return Err(VerificationError::InvalidState);
+    pub fn enable_double_buffering(&mut self) {
+        self.double_buffering = true;
+    }
+
+    pub fn plot_pixel(&mut self, x: usize, y: usize, pixel: Pixel) {
+        if x >= VGA_WIDTH || y >= VGA_HEIGHT {
+            return;
         }
-    
-        let double_buffer = self.double_buffer.as_ref()
-            .ok_or(VerificationError::InvalidState)?;
 
-        self.swap_in_progress.store(true, Ordering::SeqCst);
+        let offset = y * VGA_WIDTH + x;
 
-        let back_buffer_hash = hash::hash_memory(
-            VirtAddr::new(double_buffer.as_ptr() as u64),
-            double_buffer.len()
-        );
-
-        let front_buffer_hash = hash::hash_memory(
-            self.buffer,
-            self.size
-        );
-
-        self.back_buffer_hash.store(back_buffer_hash.0, Ordering::SeqCst);
-        self.front_buffer_hash.store(front_buffer_hash.0, Ordering::SeqCst);
+        if x < 4 {
+            serial_println!("Writing pixel: x={}, y={}, offset={:#x}, value={:#x}", 
+                x, y, offset, pixel.index);
+        }
 
         unsafe {
-            core::ptr::copy_nonoverlapping(
-                double_buffer.as_ptr(),
-                self.buffer.as_mut_ptr(),
-                double_buffer.len()
+            write_volatile(
+                if self.double_buffering {
+                    self.back_buffer.add(offset)
+                } else {
+                    self.front_buffer.add(offset)
+                },
+                pixel.index
             );
         }
+    }
 
-        let new_front_hash = hash::hash_memory(
-            self.buffer,
-            self.size
-        );
-    
-        if new_front_hash.0 != back_buffer_hash.0 {
-            unsafe {
-                let mut prev_buffer = vec![0u8; self.size];
-                core::ptr::copy_nonoverlapping(
-                    self.buffer.as_ptr(),
-                    prev_buffer.as_mut_ptr(),
-                    self.size
-                );
-
-                core::ptr::copy_nonoverlapping(
-                    prev_buffer.as_ptr(),
-                    self.buffer.as_mut_ptr(),
-                    self.size
-                );
+    pub fn draw_circle(&mut self, center_x: usize, center_y: usize, radius: usize, pixel: Pixel) {
+        for y in 0..self.height() {
+            for x in 0..self.width() {
+                let dx = (x as isize - center_x as isize).abs();
+                let dy = (y as isize - center_y as isize).abs();
+                let distance = ((dx * dx + dy * dy) as f32).sqrt();
+                
+                if distance <= radius as f32 {
+                    self.plot_pixel(x, y, pixel);
+                }
             }
-            self.swap_in_progress.store(false, Ordering::SeqCst);
-            return Err(VerificationError::OperationFailed);
         }
-
-        let new_state = Hash(front_buffer_hash.0 ^ back_buffer_hash.0);
-        self.state_hash.store(new_state.0, Ordering::SeqCst);
-
-        self.swap_in_progress.store(false, Ordering::SeqCst);
-    
-        Ok(new_state)
     }
 
-    pub fn flip_page(&mut self) -> Result<Hash, VerificationError> {
-        if !self.info.page_flip_supported {
-            return Err(VerificationError::InvalidOperation);
-        }
-    
-        if self.flip_in_progress.load(Ordering::SeqCst) {
-            return Err(VerificationError::InvalidState);
-        }
-    
-        self.flip_in_progress.store(true, Ordering::SeqCst);
-    
-        self.wait_for_vsync()?;
-
-        let current_buffer = VirtAddr::new(self.active_buffer.load(Ordering::SeqCst));
-        let next_buffer = if current_buffer == self.page1_buffer {
-            self.page2_buffer
-        } else {
-            self.page1_buffer
-        };
-
-        let next_hash = hash::hash_memory(next_buffer, self.size);
-
-        unsafe {
-            let mut crt_port = self.vga_crt_port.lock();
-            let offset = (next_buffer.as_u64() >> 12) as u16;
-
-            crt_port.write(0x0Cu16);
-            Port::new(0x3D5).write((offset >> 8) as u8);
-
-            crt_port.write(0x0Du16);
-            Port::new(0x3D5).write(offset as u8);
-        }
-
-        self.active_buffer.store(next_buffer.as_u64(), Ordering::SeqCst);
-        self.state_hash.store(next_hash.0, Ordering::SeqCst);
-        self.flip_in_progress.store(false, Ordering::SeqCst);
-    
-        Ok(next_hash)
-    }
-
-    pub fn get_active_buffer(&self) -> VirtAddr {
-        VirtAddr::new(self.active_buffer.load(Ordering::SeqCst))
-    }
-
-    pub fn get_front_buffer_hash(&self) -> Hash {
-        Hash(self.front_buffer_hash.load(Ordering::SeqCst))
-    }
-    
-    pub fn get_back_buffer_hash(&self) -> Hash {
-        Hash(self.back_buffer_hash.load(Ordering::SeqCst))
-    }
-    
-    pub fn is_swap_in_progress(&self) -> bool {
-        self.swap_in_progress.load(Ordering::SeqCst)
-    }
-
-    pub fn draw_pixel_verified(&mut self, x: u32, y: u32, color: u32) -> Result<Hash, VerificationError> {
-        if let Err(e) = self.write_pixel(x, y, color) {
-            return Err(VerificationError::OperationFailed);
-        }
-
-        let offset = (y * self.info.pitch + x * (self.info.bpp as u32 / 8)) as usize;
-        let pixel_data = unsafe {
-            core::slice::from_raw_parts(
-                (self.buffer + offset).as_ptr(),
-                4
-            )
-        };
-
-        let pixel_hash = unsafe {
-            hash::hash_memory(
-                VirtAddr::new(pixel_data.as_ptr() as *const () as u64),
-                pixel_data.len()
-            )
-        };
-
-        Ok(pixel_hash)
-    }
-
-    pub fn fill_rect_verified(&mut self, x: u32, y: u32, width: u32, height: u32, color: u32) 
-        -> Result<Hash, VerificationError> 
-    {
-        let mut hashes = Vec::new();
+    pub fn draw_char(&mut self, x: usize, y: usize, c: char, pixel: Pixel) {
+        let font = crate::font::FONT.lock();
+        let glyph = font.get_glyph(c);
         
-        for cy in y..y.saturating_add(height) {
-            for cx in x..x.saturating_add(width) {
-                if let Ok(hash) = self.draw_pixel_verified(cx, cy, color) {
-                    hashes.push(hash);
+        for (row, glyph_row) in glyph.iter().enumerate() {
+            for col in 0..8 {
+                if (glyph_row & (0x80 >> col)) != 0 {
+                    self.plot_pixel(x + col, y + row, pixel);
                 }
             }
         }
-
-        Ok(hash::combine_hashes(&hashes))
     }
 
-    pub fn clear(&mut self, color: u32) -> Result<(), &'static str> {
-        if let Some(ref mut double_buffer) = self.double_buffer {
-            for y in 0..self.info.height {
-                for x in 0..self.info.width {
-                    self.write_pixel(x, y, color)?;
-                }
+    pub fn print_string(&mut self, x: usize, y: usize, text: &str, pixel: Pixel) {
+        let mut current_x = x;
+        for c in text.chars() {
+            if current_x + 8 >= self.width() {
+                break;
             }
-            Ok(())
-        } else {
-            Err("Double buffer not initialized")
+            self.draw_char(current_x, y, c, pixel);
+            current_x += 8;
+        }
+    }
+
+    pub fn clear(&mut self, pixel: Pixel) {
+        serial_println!("Starting clear with color index {:#x}", pixel.index);
+        
+        for i in 0..VGA_BUFFER_SIZE {
+            if i % VGA_WIDTH == 0 {
+                serial_println!("Writing scanline {}, offset={:#x}", 
+                    i / VGA_WIDTH, i);
+            }
+
+            unsafe {
+                write_volatile(
+                    if self.double_buffering {
+                        self.back_buffer.add(i)
+                    } else {
+                        self.front_buffer.add(i)
+                    },
+                    pixel.index
+                );
+            }
+        }
+        serial_println!("Clear operation completed");
+    }
+
+    pub fn draw_rect(&mut self, x: usize, y: usize, width: usize, height: usize, pixel: Pixel) {
+        for cy in y..core::cmp::min(y + height, VGA_HEIGHT) {
+            for cx in x..core::cmp::min(x + width, VGA_WIDTH) {
+                self.plot_pixel(cx, cy, pixel);
+            }
+        }
+    }
+
+    pub fn swap_buffers(&mut self) {
+        if !self.double_buffering {
+            return;
+        }
+
+        for i in 0..VGA_BUFFER_SIZE {
+            unsafe {
+                let pixel = read_volatile(self.back_buffer.add(i));
+                write_volatile(self.front_buffer.add(i), pixel);
+            }
+        }
+    }
+
+    pub fn width(&self) -> usize {
+        VGA_WIDTH
+    }
+
+    pub fn height(&self) -> usize {
+        VGA_HEIGHT
+    }
+}
+
+lazy_static! {
+    pub static ref FRAMEBUFFER: Mutex<Option<Framebuffer>> = Mutex::new(None);
+}
+
+pub const BLACK: Pixel = Pixel { index: 0 };
+pub const BLUE: Pixel = Pixel { index: 1 };
+pub const GREEN: Pixel = Pixel { index: 2 };
+pub const CYAN: Pixel = Pixel { index: 3 };
+pub const RED: Pixel = Pixel { index: 4 };
+pub const MAGENTA: Pixel = Pixel { index: 5 };
+pub const BROWN: Pixel = Pixel { index: 6 };
+pub const LIGHT_GRAY: Pixel = Pixel { index: 7 };
+pub const DARK_GRAY: Pixel = Pixel { index: 8 };
+pub const LIGHT_BLUE: Pixel = Pixel { index: 9 };
+pub const LIGHT_GREEN: Pixel = Pixel { index: 10 };
+pub const LIGHT_CYAN: Pixel = Pixel { index: 11 };
+pub const LIGHT_RED: Pixel = Pixel { index: 12 };
+pub const LIGHT_MAGENTA: Pixel = Pixel { index: 13 };
+pub const YELLOW: Pixel = Pixel { index: 14 };
+pub const WHITE: Pixel = Pixel { index: 15 };
+
+const VGA_DAC_WRITE_INDEX: u16 = 0x3C8;
+const VGA_DAC_DATA: u16 = 0x3C9;
+const VGA_DAC_READ_INDEX: u16 = 0x3C7;
+const VGA_DAC_STATE: u16 = 0x3C7;
+
+fn debug_vga_state() {
+    unsafe {
+        let mut crtc_index = Port::<u8>::new(VGA_CRTC_INDEX);
+        let mut crtc_data = Port::<u8>::new(VGA_CRTC_DATA);
+        
+        serial_println!("=== CRTC Register State ===");
+        for i in 0..25 {
+            crtc_index.write(i as u8);
+            let value = crtc_data.read();
+            serial_println!("CRTC {:#04x}: {:#04x}", i, value);
+        }
+
+        let mut seq_index = Port::<u8>::new(VGA_SEQ_INDEX);
+        let mut seq_data = Port::<u8>::new(VGA_SEQ_DATA);
+        
+        serial_println!("=== Sequencer Register State ===");
+        for i in 0..5 {
+            seq_index.write(i as u8);
+            let value = seq_data.read();
+            serial_println!("SEQ {:#04x}: {:#04x}", i, value);
+        }
+
+        let mut gc_index = Port::<u8>::new(VGA_GC_INDEX);
+        let mut gc_data = Port::<u8>::new(VGA_GC_DATA);
+        
+        serial_println!("=== Graphics Controller Register State ===");
+        for i in 0..9 {
+            gc_index.write(i as u8);
+            let value = gc_data.read();
+            serial_println!("GC {:#04x}: {:#04x}", i, value);
         }
     }
 }
 
-impl Verifiable for Framebuffer {
-    fn generate_proof(&self, operation: crate::verification::Operation) -> Result<OperationProof, VerificationError> {
-        match operation {
-            crate::verification::Operation::Memory { address, size, .. } => {
-                let prev_state = self.state_hash();
-                
-                let buffer_hash = if let Some(ref double_buffer) = self.double_buffer {
-                    hash::hash_memory(
-                        VirtAddr::new(double_buffer.as_ptr() as u64),
-                        double_buffer.len()
-                    )
-                } else {
-                    return Err(VerificationError::InvalidState);
-                };
-                
-                let new_state = Hash(prev_state.0 ^ buffer_hash.0);
-                
-                Ok(OperationProof {
-                    op_id: crate::tsc::read_tsc(),
-                    prev_state,
-                    new_state,
-                    data: crate::verification::ProofData::Memory(
-                        crate::verification::MemoryProof {
-                            operation: crate::verification::MemoryOpType::Modify,
-                            address,
-                            size,
-                            frame_hash: buffer_hash,
-                        }
-                    ),
-                    signature: [0; 64],
-                })
-            },
-            _ => Err(VerificationError::InvalidOperation),
+fn init_vga_dac() {
+    unsafe {
+        serial_println!("Initializing VGA DAC...");
+        let mut write_index = Port::<u8>::new(VGA_DAC_WRITE_INDEX);
+        let mut dac_data = Port::<u8>::new(VGA_DAC_DATA);
+
+        write_index.write(0);
+
+        let palette: [(u8, u8, u8); 16] = [
+            (0, 0, 0),       // 0: Black
+            (0, 0, 63),      // 1: Blue
+            (0, 63, 0),      // 2: Green
+            (0, 63, 63),     // 3: Cyan
+            (63, 0, 0),      // 4: Red
+            (63, 0, 63),     // 5: Magenta
+            (63, 32, 0),     // 6: Brown
+            (63, 63, 63),    // 7: Light Gray
+            (32, 32, 32),    // 8: Dark Gray
+            (32, 32, 63),    // 9: Light Blue
+            (32, 63, 32),    // 10: Light Green
+            (32, 63, 63),    // 11: Light Cyan
+            (63, 32, 32),    // 12: Light Red
+            (63, 32, 63),    // 13: Light Magenta
+            (63, 63, 32),    // 14: Yellow
+            (63, 63, 63),    // 15: White
+        ];
+
+        for (r, g, b) in palette.iter() {
+            dac_data.write(*r);
+            dac_data.write(*g);
+            dac_data.write(*b);
         }
+        
+        serial_println!("DAC initialization completed");
+    }
+}
+
+fn verify_mode_13h() {
+    unsafe {
+        let mut seq_index = Port::<u8>::new(VGA_SEQ_INDEX);
+        let mut seq_data = Port::<u8>::new(VGA_SEQ_DATA);
+        let mut gc_index = Port::<u8>::new(VGA_GC_INDEX);
+        let mut gc_data = Port::<u8>::new(VGA_GC_DATA);
+
+        seq_index.write(0x04_u8);
+        let chain4 = seq_data.read();
+        serial_println!("Chain-4 mode: {:#02x} (should be 0x08)", chain4);
+
+        gc_index.write(0x06_u8);
+        let memory_mode = gc_data.read();
+        serial_println!("Memory mapping: {:#02x} (should be 0x05)", memory_mode);
+    }
+}
+
+fn check_vga_status() {
+    unsafe {
+        let mut misc_port = Port::<u8>::new(VGA_MISC_WRITE);
+        let misc_value = Port::<u8>::new(0x3CC).read();
+        serial_println!("Misc Output Register: {:#02x}", misc_value);
+
+        let mut seq_index = Port::<u8>::new(VGA_SEQ_INDEX);
+        let mut seq_data = Port::<u8>::new(VGA_SEQ_DATA);
+        
+        seq_index.write(0x00_u8);
+        let seq_reset = seq_data.read();
+        serial_println!("Sequencer Reset: {:#02x}", seq_reset);
+
+        seq_index.write(0x04_u8);
+        let seq_memory_mode = seq_data.read();
+        serial_println!("Memory Mode: {:#02x}", seq_memory_mode);
+
+        let mut gc_index = Port::<u8>::new(VGA_GC_INDEX);
+        let mut gc_data = Port::<u8>::new(VGA_GC_DATA);
+
+        gc_index.write(0x06_u8);
+        let graphics_mode = gc_data.read();
+        serial_println!("Graphics Mode: {:#02x}", graphics_mode);
+
+        gc_index.write(0x05_u8);
+        let graphics_mode_reg = gc_data.read();
+        serial_println!("Graphics Mode Register: {:#02x}", graphics_mode_reg);
+    }
+}
+
+
+fn reset_vga() {
+    unsafe {
+        serial_println!("Starting VGA reset sequence...");
+
+        let mut seq_index = Port::<u8>::new(VGA_SEQ_INDEX);
+        let mut seq_data = Port::<u8>::new(VGA_SEQ_DATA);
+
+        seq_index.write(0x00_u8);
+        seq_data.write(0x00_u8);
+
+        for i in 0..5 {
+            seq_index.write(i);
+            seq_data.write(0x00_u8);
+        }
+
+        let mut gc_index = Port::<u8>::new(VGA_GC_INDEX);
+        let mut gc_data = Port::<u8>::new(VGA_GC_DATA);
+        
+        for i in 0..9 {
+            gc_index.write(i);
+            gc_data.write(0x00_u8);
+        }
+
+        let mut instat_port = Port::<u8>::new(VGA_INSTAT_READ);
+        let mut ac_port = Port::<u8>::new(VGA_AC_INDEX);
+
+        let _ = instat_port.read();
+        
+        for i in 0..0x15 {
+            ac_port.write(i);
+            ac_port.write(0x00_u8);
+        }
+
+        let mut crtc_index = Port::<u8>::new(VGA_CRTC_INDEX);
+        let mut crtc_data = Port::<u8>::new(VGA_CRTC_DATA);
+        
+        for i in 0..0x19 {
+            crtc_index.write(i);
+            crtc_data.write(0x00_u8);
+        }
+
+        let _ = instat_port.read();
+        ac_port.write(0x20_u8);
+
+        seq_index.write(0x00_u8);
+        seq_data.write(0x03_u8);
+        
+        serial_println!("VGA reset sequence completed");
+    }
+}
+
+fn verify_crtc_offset() {
+    unsafe {
+        let mut crtc_index = Port::<u8>::new(VGA_CRTC_INDEX);
+        let mut crtc_data = Port::<u8>::new(VGA_CRTC_DATA);
+        
+        crtc_index.write(0x13);
+        let offset = crtc_data.read();
+        serial_println!("CRTC Offset Register (0x13) = {:#x}", offset);
+
+        let bytes_per_line = (offset as u16) * 2;
+        serial_println!("CRTC configured bytes per line: {}", bytes_per_line);
+    }
+}
+
+fn verify_memory_layout() {
+    unsafe {
+        let mut crtc_index = Port::<u8>::new(VGA_CRTC_INDEX);
+        let mut crtc_data = Port::<u8>::new(VGA_CRTC_DATA);
+        
+        crtc_index.write(0x13);
+        let hardware_offset = crtc_data.read();
+        let hardware_stride = (hardware_offset as usize) * 4 * 2;
+        let our_stride = VGA_WIDTH;
+        
+        serial_println!("Memory layout verification:");
+        serial_println!("  Hardware offset register: {:#x}", hardware_offset);
+        serial_println!("  Hardware stride: {} bytes", hardware_stride);
+        serial_println!("  Our stride: {} bytes", our_stride);
+        serial_println!("  Mismatch: {} bytes", 
+            if hardware_stride > our_stride {
+                hardware_stride - our_stride
+            } else {
+                our_stride - hardware_stride
+            }
+        );
+    }
+}
+
+// fn test_solid_color() {
+//     if let Some(fb) = &mut *FRAMEBUFFER.lock() {
+//         serial_println!("Starting circle test for {}x{} framebuffer...", fb.width(), fb.height());
+//         verify_crtc_offset();
+//         verify_memory_layout();
+//         unsafe {
+//             let mut port = Port::<u8>::new(VGA_INSTAT_READ);
+//             port.read();
+//             while port.read() & 0x08 == 0 {}
+//         }
+//         
+//         fb.double_buffering = true;
+//         
+//         fb.clear(WHITE); 
+//         let center_x = fb.width() / 2;
+//         let center_y = fb.height() / 2;
+//         let radius = 50;
+//         fb.draw_circle(center_x, center_y, radius, BLUE);
+//         
+//         fb.swap_buffers();
+//         fb.double_buffering = false;
+//         serial_println!("Circle test completed");
+//     }
+// }
+
+const MODE_13H_MISC: u8 = 0x63;
+
+const MODE_13H_SEQ: &[u8] = &[
+    0x03,  // Reset
+    0x01,  // Clocking Mode
+    0x0F,  // Map Mask
+    0x00,  // Character Map Select
+    0x0E   // Memory Mode
+];
+
+const MODE_13H_CRTC: &[u8] = &[
+    0x5F, // 0x00: Horizontal Total
+    0x4F, // 0x01: Horizontal Display End
+    0x50, // 0x02: Start Horizontal Blanking
+    0x82, // 0x03: End Horizontal Blanking
+    0x54, // 0x04: Start Horizontal Retrace
+    0x80, // 0x05: End Horizontal Retrace
+    0xBF, // 0x06: Vertical Total
+    0x1F, // 0x07: Overflow
+    0x00, // 0x08: Preset Row Scan
+    0x41, // 0x09: Maximum Scan Line
+    0x00, // 0x0A: Cursor Start
+    0x00, // 0x0B: Cursor End
+    0x00, // 0x0C: Start Address High
+    0x00, // 0x0D: Start Address Low
+    0x00, // 0x0E: Cursor Location High
+    0x00, // 0x0F: Cursor Location Low
+    0x9C, // 0x10: Vertical Retrace Start
+    0x8E, // 0x11: Vertical Retrace End
+    0x8F, // 0x12: Vertical Display End
+    0x28, // 0x13: Offset
+    0x40, // 0x14: Underline Location
+    0x96, // 0x15: Start Vertical Blanking
+    0xB9, // 0x16: End Vertical Blanking
+    0xA3, // 0x17: CRTC Mode Control
+    0xFF  // 0x18: Line Compare
+];
+
+const MODE_13H_GC: &[u8] = &[
+    0x00, // Set/Reset
+    0x00, // Enable Set/Reset
+    0x00, // Color Compare
+    0x00, // Data Rotate
+    0x00, // Read Map Select
+    0x40, // Graphics Mode
+    0x05, // Miscellaneous
+    0x0F, // Color Don't Care
+    0xFF  // Bit Mask
+];
+
+fn write_registers() {
+    unsafe {
+        let mut misc_port = Port::<u8>::new(VGA_MISC_WRITE);
+        misc_port.write(0x00);
+
+        let mut instat_port = Port::<u8>::new(VGA_INSTAT_READ);
+        let _ = instat_port.read();
+
+        misc_port.write(MODE_13H_MISC);
+
+        let mut seq_index = Port::<u8>::new(VGA_SEQ_INDEX);
+        let mut seq_data = Port::<u8>::new(VGA_SEQ_DATA);
+
+        seq_index.write(0x00);
+        seq_data.write(0x01);
+
+        for (i, &value) in MODE_13H_SEQ.iter().enumerate() {
+            seq_index.write(i as u8);
+            seq_data.write(value);
+            serial_println!("Writing SEQ {:#04x}: {:#04x}", i, value);
+        }
+
+        seq_index.write(0x00);
+        seq_data.write(0x03);
+
+        let mut crtc_index = Port::<u8>::new(VGA_CRTC_INDEX);
+        let mut crtc_data = Port::<u8>::new(VGA_CRTC_DATA);
+
+        crtc_index.write(0x11);
+        let value = crtc_data.read() & 0x7F;
+        crtc_data.write(value);
+
+        for (i, &value) in MODE_13H_CRTC.iter().enumerate() {
+            crtc_index.write(i as u8);
+            let before = crtc_data.read();
+            crtc_data.write(value);
+            let after = crtc_data.read();
+            serial_println!("Writing CRTC {:#04x}: {:#04x} (before: {:#04x}, after: {:#04x})", 
+                i, value, before, after);
+        }
+
+        let mut gc_index = Port::<u8>::new(VGA_GC_INDEX);
+        let mut gc_data = Port::<u8>::new(VGA_GC_DATA);
+
+        for (i, &value) in MODE_13H_GC.iter().enumerate() {
+            gc_index.write(i as u8);
+            gc_data.write(value);
+            serial_println!("Writing GC {:#04x}: {:#04x}", i, value);
+        }
+
+        misc_port.write(0x63);
+    }
+}
+
+fn setup_crtc_timing() {
+    unsafe {
+        let mut crtc_index = Port::<u8>::new(VGA_CRTC_INDEX);
+        let mut crtc_data = Port::<u8>::new(VGA_CRTC_DATA);
+
+        crtc_index.write(0x11_u8);
+        let current = crtc_data.read();
+        crtc_data.write(current & 0x7F_u8);
+
+        let timing_values: [(u8, u8); 10] = [
+            (0x00, 0x5F),     // Horizontal total
+            (0x01, 0x4F),     // Horizontal display enable end
+            (0x02, 0x50),     // Start horizontal blanking
+            (0x03, 0x82),     // End horizontal blanking
+            (0x04, 0x54),     // Start horizontal retrace
+            (0x05, 0x80),     // End horizontal retrace
+            (0x06, 0xBF),     // Vertical total
+            (0x07, 0x1F),     // Overflow
+            (0x09, 0x40),     // Maximum scan line - Changed
+            (0x11, 0x0E),     // Vertical retrace end - Changed
+        ];
+
+        for (index, value) in timing_values.iter() {
+            crtc_index.write(*index);
+            crtc_data.write(*value);
+        }
+
+        crtc_index.write(0x15_u8);
+        crtc_data.write(0x96_u8);
+        
+        crtc_index.write(0x16_u8);
+        crtc_data.write(0xB9_u8);
+
+        crtc_index.write(0x13_u8);
+        crtc_data.write(0x28_u8);
+        
+        crtc_index.write(0x14_u8);
+        crtc_data.write(0x00_u8);
+    }
+}
+
+fn set_mode_13h() {
+    unsafe {
+        serial_println!("Setting VGA Mode 13h...");
+
+        let mut misc_port = Port::<u8>::new(VGA_MISC_WRITE);
+        misc_port.write(0x63);
+
+        let mut seq_index = Port::<u8>::new(VGA_SEQ_INDEX);
+        let mut seq_data = Port::<u8>::new(VGA_SEQ_DATA);
+
+        seq_index.write(0x00);
+        seq_data.write(0x01);
+
+        for i in 1..5 {
+            seq_index.write(i);
+            seq_data.write(0x00);
+        }
+
+        let seq_values: [(u8, u8); 4] = [
+            (0x01, 0x01),  // Enable character clocking and screen
+            (0x02, 0x0F),  // Enable writing to all planes
+            (0x03, 0x00),  // No character font select
+            (0x04, 0x08),  // Enable memory access and disable odd/even
+        ];
+
+        for (index, value) in seq_values.iter() {
+            seq_index.write(*index);
+            seq_data.write(*value);
+
+            seq_index.write(*index);
+            let readback = seq_data.read();
+            if readback != *value {
+                serial_println!("SEQ register write verification failed: wrote {:#04x}, read {:#04x}", 
+                    value, readback);
+            }
+        }
+
+        seq_index.write(0x00);
+        seq_data.write(0x03);
+
+        let mut crtc_index = Port::<u8>::new(VGA_CRTC_INDEX);
+        let mut crtc_data = Port::<u8>::new(VGA_CRTC_DATA);
+
+        crtc_index.write(0x11);
+        let value = crtc_data.read();
+        crtc_data.write(value & 0x7F);
+
+        let mut gc_index = Port::<u8>::new(VGA_GC_INDEX);
+        let mut gc_data = Port::<u8>::new(VGA_GC_DATA);
+
+        let gc_values: [(u8, u8); 9] = [
+            (0x00, 0x00),  // Set/Reset
+            (0x01, 0x00),  // Enable Set/Reset
+            (0x02, 0x00),  // Color Compare
+            (0x03, 0x00),  // Data Rotate
+            (0x04, 0x00),  // Read Map Select
+            (0x05, 0x40),  // Mode Register
+            (0x06, 0x05),  // Miscellaneous
+            (0x07, 0x0F),  // Color Don't Care
+            (0x08, 0xFF)   // Bit Mask
+        ];
+
+        for (index, value) in gc_values.iter() {
+            gc_index.write(*index);
+            gc_data.write(*value);
+
+            gc_index.write(*index);
+            let readback = gc_data.read();
+            if readback != *value {
+                serial_println!("GC register write verification failed: wrote {:#04x}, read {:#04x}", 
+                    value, readback);
+            }
+        }
+
+        serial_println!("Mode 13h base settings completed");
     }
 
-    fn verify_proof(&self, proof: &OperationProof) -> Result<bool, VerificationError> {
-        let current_state = self.state_hash();
-        Ok(current_state == proof.new_state)
-    }
+    serial_println!("Mode 13h base settings completed");
+    serial_println!("Checking CRTC offset after mode set:");
+    verify_crtc_offset();
+}
 
-    fn state_hash(&self) -> Hash {
-        Hash(self.state_hash.load(Ordering::SeqCst))
-    }
+pub fn init() {
+    serial_println!("Starting VGA initialization...");
+    
+    serial_println!("Initial VGA state:");
+    debug_vga_state();
+    
+    reset_vga();
+    
+    serial_println!("Post-reset VGA state:");
+    debug_vga_state();
+    
+    set_mode_13h();
+    
+    serial_println!("Post-Mode 13h VGA state:");
+    debug_vga_state();
+    
+    write_registers();
+    verify_mode_13h(); 
+    
+    serial_println!("Final VGA state:");
+    debug_vga_state();
+    
+    init_vga_dac();
+
+    let mut fb = Framebuffer::new();
+    *FRAMEBUFFER.lock() = Some(fb);
+    
+    // test_solid_color();
 }

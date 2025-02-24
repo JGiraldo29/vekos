@@ -5,12 +5,16 @@ edition = "2021"
 
 [dependencies]
 bootloader = { version = "0.9.23", features = ["map_physical_memory"] }
+# bootloader = { version = "0.9.23", features = ["map_physical_memory", "vga_320x200"] }
+embedded-graphics = "0.8"
+ttf-parser = { version = "0.15", optional = true }
 spin = "0.5.2"
 volatile = "0.2.6"
 x86_64 = { version = "0.14.12", features = ["instructions"] }
 lazy_static = { version = "1.4.0", features = ["spin_no_std"] }
 pic8259 = "0.10.1"
 pc-keyboard = "0.7.0"
+micromath = "2.1.0"
 uart_16550 = "0.2.0"
 array-init = "2.0.0"
 sha2 = { version = "0.10.7", default-features = false, features = ["force-soft"] }

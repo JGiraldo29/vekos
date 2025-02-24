@@ -99,34 +99,47 @@ pub fn init() {
     use x86_64::instructions::segmentation::{CS, DS, ES, FS, GS, SS};
 
     serial_println!("DEBUG: Starting GDT init...");
-    serial_println!("DEBUG: About to load GDT...");
 
     GDT.0.load();
     serial_println!("DEBUG: GDT loaded successfully");
     
     unsafe {
-    serial_println!("DEBUG: Setting up segments...");
-    CS::set_reg(GDT.1.code_selector);
-    serial_println!("DEBUG: CS set");
-    DS::set_reg(GDT.1.data_selector);
-    serial_println!("DEBUG: DS set");
-    ES::set_reg(GDT.1.data_selector);
-    serial_println!("DEBUG: ES set");
-    FS::set_reg(GDT.1.data_selector);
-    serial_println!("DEBUG: FS set");
-    GS::set_reg(GDT.1.data_selector);
-    serial_println!("DEBUG: GS set");
-    SS::set_reg(GDT.1.data_selector);
-    serial_println!("DEBUG: SS set");
-    
-    serial_println!("DEBUG: Loading TSS...");
-    load_tss(GDT.1.tss_selector);
-    serial_println!("DEBUG: TSS loaded");
-    
-    serial_println!("DEBUG: All segments loaded successfully");
-    serial_println!("Current segments:");
-    serial_println!("CS: {:#x}", CS::get_reg().0);
-    serial_println!("DS: {:#x}", DS::get_reg().0);
-    serial_println!("SS: {:#x}", SS::get_reg().0);
-}
+        CS::set_reg(GDT.1.code_selector);
+        serial_println!("DEBUG: CS set to {:#x}", CS::get_reg().0);
+
+        DS::set_reg(GDT.1.data_selector);
+        if DS::get_reg().0 != GDT.1.data_selector.0 {
+            serial_println!("ERROR: DS not set correctly");
+        }
+
+        ES::set_reg(GDT.1.data_selector);
+        if ES::get_reg().0 != GDT.1.data_selector.0 {
+            serial_println!("ERROR: ES not set correctly");
+        }
+
+        FS::set_reg(GDT.1.data_selector);
+        if FS::get_reg().0 != GDT.1.data_selector.0 {
+            serial_println!("ERROR: FS not set correctly");
+        }
+
+        GS::set_reg(GDT.1.data_selector);
+        if GS::get_reg().0 != GDT.1.data_selector.0 {
+            serial_println!("ERROR: GS not set correctly");
+        }
+
+        SS::set_reg(GDT.1.data_selector);
+        if SS::get_reg().0 != GDT.1.data_selector.0 {
+            serial_println!("ERROR: SS not set correctly");
+        }
+
+        load_tss(GDT.1.tss_selector);
+
+        serial_println!("Final segment verification:");
+        serial_println!("CS: {:#x} (expected: {:#x})", CS::get_reg().0, GDT.1.code_selector.0);
+        serial_println!("DS: {:#x} (expected: {:#x})", DS::get_reg().0, GDT.1.data_selector.0);
+        serial_println!("ES: {:#x} (expected: {:#x})", ES::get_reg().0, GDT.1.data_selector.0);
+        serial_println!("FS: {:#x} (expected: {:#x})", FS::get_reg().0, GDT.1.data_selector.0);
+        serial_println!("GS: {:#x} (expected: {:#x})", GS::get_reg().0, GDT.1.data_selector.0);
+        serial_println!("SS: {:#x} (expected: {:#x})", SS::get_reg().0, GDT.1.data_selector.0);
+    }
 }

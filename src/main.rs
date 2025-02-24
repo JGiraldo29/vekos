@@ -28,17 +28,17 @@ extern crate alloc;
 pub mod serial;
 pub mod signals;
 pub mod tty;
-pub mod graphics_hal;
 pub mod page_table_cache;
 use alloc::string::ToString;
 use x86_64::instructions::port::Port;
+use crate::framebuffer::FRAMEBUFFER;
 use spin::Mutex;
 use crate::fs::FILESYSTEM;
 use crate::fs::FileSystem;
 use crate::verification::VERIFICATION_REGISTRY;
+use embedded_graphics::pixelcolor::Rgb888;
 use alloc::format;
 use lazy_static::lazy_static;
-use crate::vbe::VbeDriver;
 pub use verification::{Hash, OperationProof, Verifiable, VerificationError};
 use core::panic::PanicInfo;
 use bootloader::{bootinfo::BootInfo, entry_point};
@@ -46,6 +46,7 @@ use x86_64::VirtAddr;
 pub use shell::Shell;
 pub use operation_proofs::*;
 use boot_splash::{BootSplash, BootMessageType};
+use bootloader::bootinfo::MemoryRegionType;
 
 use core::sync::atomic::Ordering;
 use boot_verification::{BOOT_VERIFICATION, BootStage};
@@ -55,7 +56,6 @@ mod verification;
 mod allocator;
 pub mod crypto;
 mod vkfs;
-mod vbe;
 pub mod syscall;
 mod boot_splash;
 pub mod hash_chain;
@@ -68,8 +68,9 @@ pub mod inode_cache;
 pub mod shell;
 pub mod hash;
 pub mod page_table;
-pub mod framebuffer;
 pub mod block_cache;
+pub mod framebuffer;
+pub mod font;
 mod swap;
 mod boot_verification;
 mod tsc;
@@ -106,52 +107,21 @@ lazy_static! {
     static ref SCHEDULER: Mutex<Option<Scheduler>> = Mutex::new(None);
 }
 
-lazy_static! {
-    pub static ref FRAMEBUFFER: Mutex<Option<framebuffer::Framebuffer>> = Mutex::new(None);
-}
-
-lazy_static! {
-    pub static ref VBE_DRIVER: Mutex<Option<VbeDriver>> = Mutex::new(None);
-}
-
-pub const PALETTE_COLORS: [u32; 16] = [
-    0xFF000000, 0xFFFF0000, 0xFF00FF00, 0xFF0000FF,
-    0xFFFFFF00, 0xFFFF00FF, 0xFF00FFFF, 0xFFFFFFFF,
-    0xFF808080, 0xFF800000, 0xFF008000, 0xFF000080,
-    0xFF808000, 0xFF800080, 0xFF008080, 0xFFC0C0C0,
-];
-
-pub struct DrawingState {
-    current_color: u32,
-}
-
-impl DrawingState {
-    pub fn new() -> Self {
-        Self {
-            current_color: PALETTE_COLORS[0],
-        }
-    }
-}
-
-lazy_static! {
-    pub static ref DRAWING_STATE: Mutex<DrawingState> = Mutex::new(DrawingState::new());
-}
-
 fn kernel_main(boot_info: &'static BootInfo) -> ! {
+    // framebuffer::init();
     BootSplash::show_splash();
     BootSplash::print_boot_message("Starting VEKOS boot sequence...", BootMessageType::Info);
     let mut boot_verifier = BOOT_VERIFICATION.lock();
     boot_verifier.start_boot();
-    
+
     BootSplash::print_boot_message("Initializing Global Descriptor Table...", BootMessageType::Info);
     gdt::init();
     BootSplash::print_boot_message("GDT initialization complete", BootMessageType::Success);
-    
+
     BootSplash::print_boot_message("Initializing memory management...", BootMessageType::Info);
     let phys_mem_offset = VirtAddr::new(boot_info.physical_memory_offset);
     let mut memory_manager = unsafe { MemoryManager::new(phys_mem_offset, &boot_info.memory_map) };
     BootSplash::print_boot_message("Memory management initialized", BootMessageType::Success);
-    
     
     BootSplash::print_boot_message("Initializing heap...", BootMessageType::Info);
     let mut mapper = unsafe { memory_manager.get_mapper() };
@@ -277,78 +247,6 @@ fn kernel_main(boot_info: &'static BootInfo) -> ! {
     }
     BootSplash::print_boot_message("Initial process complete", BootMessageType::Success);
 
-    serial_println!("Starting framebuffer initialization...");
-    let framebuffer_info = framebuffer::FramebufferInfo {
-        width: 800,
-        height: 600,
-        pitch: 800 * 4,
-        bpp: 32,
-        memory_model: 1,
-        red_mask_size: 8,
-        red_mask_pos: 16,
-        green_mask_size: 8,
-        green_mask_pos: 8,
-        blue_mask_size: 8,
-        blue_mask_pos: 0,
-        page_flip_supported: true,
-        current_page: 0,
-    };
-
-    let physical_buffer = 0xfd000000;
-    let mut mm_lock = MEMORY_MANAGER.lock();
-    if let Some(ref mut mm) = *mm_lock {
-        serial_println!("Mapping framebuffer memory...");
-        match framebuffer::Framebuffer::new(framebuffer_info, physical_buffer, mm) {
-            Ok(fb) => {
-                serial_println!("Framebuffer mapping was successful");
-                FRAMEBUFFER.lock().replace(fb);
-                BootSplash::print_boot_message("Framebuffer initialization complete", BootMessageType::Success);
-            },
-            Err(e) => {
-                serial_println!("Failed to initialize framebuffer: {:?}", e);
-                BootSplash::print_boot_message("Framebuffer initialization failed!", BootMessageType::Error);
-            }
-        }
-    } else {
-        serial_println!("Memory manager unavailable for framebuffer initialization");
-    }
-    drop(mm_lock);
-
-    if let Some(ref mut fb) = *FRAMEBUFFER.lock() {
-        unsafe {
-            let mut crt_port = Port::<u16>::new(0x3D4);
-            let mut vga_status = Port::<u8>::new(0x3D5);
-
-            crt_port.write(0x11u16);
-            let current = vga_status.read();
-            vga_status.write(current | 0x20);
-        }
-        BootSplash::print_boot_message("Vsync interrupts enabled", BootMessageType::Success);
-    }
-
-    serial_println!("Starting graphics HAL initialization...");
-    let graphics_config = graphics_hal::FramebufferConfig {
-        width: 800,
-        height: 600,
-        pitch: 800 * 4,
-        bpp: 32,
-        physical_buffer: 0xfd000000,
-    };
-    let mut graphics = graphics_hal::GraphicsHAL::new(graphics_config);
-    if let Err(_) = graphics.init_double_buffering() {
-        BootSplash::print_boot_message("Graphics HAL initialization failed!", BootMessageType::Error);
-    } else {
-        BootSplash::print_boot_message("Graphics HAL initialization complete", BootMessageType::Success);
-    }
-
-    serial_println!("Starting VBE initialization...");
-    if let Ok(vbe) = VbeDriver::new() {
-        *VBE_DRIVER.lock() = Some(vbe);
-        BootSplash::print_boot_message("VBE initialization complete", BootMessageType::Success);
-    } else {
-        BootSplash::print_boot_message("VBE initialization failed!", BootMessageType::Error);
-    }
-
     BootSplash::print_boot_message("VEKOS initialization complete", BootMessageType::Success);
 
     serial_println!("Boot sequence completed in {} TSC cycles", boot_verifier.get_boot_time());
@@ -368,18 +266,24 @@ fn kernel_main(boot_info: &'static BootInfo) -> ! {
     let mut mm_lock = MEMORY_MANAGER.lock();
     if let Some(mm) = mm_lock.as_mut() {
        match Process::new(mm) {
-           Ok(mut init_process) => {
-               init_process.current_dir = "/".to_string();
-               serial_println!("Loading VETests program...");
-               if let Ok(program_data) = FILESYSTEM.lock().read_file("/programs/VETests") {
-                   if let Err(e) = init_process.load_program(&program_data, mm) {
-                       serial_println!("Failed to load program: {:?}", e);
-                   } else {
-                       BootSplash::print_boot_message("Userspace initialization complete", BootMessageType::Success);
-                       init_process.switch_to_user_mode();
-                   }
-               }
-           },
+        Ok(mut init_process) => {
+            init_process.current_dir = "/".to_string();
+            serial_println!("Loading VETests program...");
+
+            let program_data = {
+                let mut fs = FILESYSTEM.lock();
+                fs.read_file("/programs/VETests")
+            };
+        
+            if let Ok(program_data) = program_data {
+                if let Err(e) = init_process.load_program(&program_data, mm) {
+                    serial_println!("Failed to load program: {:?}", e);
+                } else {
+                    BootSplash::print_boot_message("Userspace initialization complete", BootMessageType::Success);
+                    init_process.switch_to_user_mode();
+                }
+            }
+        },
            Err(e) => serial_println!("Failed to create process: {:?}", e)
        }
     }

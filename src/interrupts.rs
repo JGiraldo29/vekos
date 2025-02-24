@@ -26,7 +26,6 @@ use spin;
 use crate::tty;
 use lazy_static::lazy_static;
 use x86_64::structures::paging::FrameAllocator;
-use crate::FRAMEBUFFER;
 use pc_keyboard::{layouts, HandleControl, Keyboard, ScancodeSet1, KeyCode};
 use crate::time::SYSTEM_TIME;
 use crate::scheduler::SCHEDULER;
@@ -78,8 +77,6 @@ lazy_static! {
             .set_handler_fn(timer_interrupt_handler);
         idt[InterruptIndex::Keyboard.as_usize()]
             .set_handler_fn(keyboard_interrupt_handler);
-        idt[InterruptIndex::Vsync.as_usize()]
-            .set_handler_fn(vsync_interrupt_handler);
         idt
     };
 }
@@ -123,24 +120,6 @@ unsafe fn reset_keyboard_controller() {
     data_port.write(0xFF);
     while (command_port.read() & 1) == 0 {}
     let _ack = data_port.read();
-}
-
-extern "x86-interrupt" fn vsync_interrupt_handler(
-    _stack_frame: InterruptStackFrame)
-{
-    use x86_64::instructions::port::Port;
-
-    unsafe {
-        let mut status_port: Port<u8> = Port::new(0x3da);
-        status_port.read();
-
-        if let Some(ref mut fb) = *FRAMEBUFFER.lock() {
-            fb.handle_vsync();
-        }
-
-        PICS.lock()
-            .notify_end_of_interrupt(InterruptIndex::Vsync.as_u8());
-    }
 }
 
 extern "x86-interrupt" fn breakpoint_handler(stack_frame: InterruptStackFrame) {
