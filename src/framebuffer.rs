@@ -306,7 +306,7 @@ fn verify_mode_13h() {
 
 fn check_vga_status() {
     unsafe {
-        let mut misc_port = Port::<u8>::new(VGA_MISC_WRITE);
+        let _misc_port = Port::<u8>::new(VGA_MISC_WRITE);
         let misc_value = Port::<u8>::new(0x3CC).read();
         serial_println!("Misc Output Register: {:#02x}", misc_value);
 
@@ -711,7 +711,7 @@ pub fn init() {
 
     init_vga_dac();
 
-    let mut fb = Framebuffer::new();
+    let fb = Framebuffer::new();
     *FRAMEBUFFER.lock() = Some(fb);
 
     // test_solid_color();

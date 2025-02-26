@@ -8,65 +8,8 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="0822aa5c-2a78-48c7-9ac4-e1af1d5e7cdc" name="Changes" comment="init">
-      <change beforePath="$PROJECT_DIR$/vekos/.cargo/config.toml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/vekos/.gitignore" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/vekos/.idea/inspectionProfiles/Project_Default.xml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/vekos/.idea/modules.xml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/vekos/.idea/vcs.xml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/vekos/.idea/vekos.iml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/vekos/.idea/workspace.xml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/vekos/Cargo.lock" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/vekos/Cargo.toml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/vekos/LICENSE" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/vekos/README.md" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/vekos/assets/font8x16.bin" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/vekos/programs/VETests" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/vekos/rust-toolchain" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/vekos/src/allocator.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/vekos/src/block_cache.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/vekos/src/boot_splash.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/vekos/src/boot_verification.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/vekos/src/buddy_allocator.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/vekos/src/buffer_manager.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/vekos/src/crypto.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/vekos/src/elf.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/vekos/src/font.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/vekos/src/framebuffer.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/vekos/src/fs.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/vekos/src/gdt.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/vekos/src/graphics_hal.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/vekos/src/hash.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/vekos/src/hash_chain.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/vekos/src/inode_cache.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/vekos/src/interrupts.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/vekos/src/main.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/vekos/src/memory.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/vekos/src/merkle_tree.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/vekos/src/operation_proofs.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/vekos/src/page_table.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/vekos/src/page_table_cache.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/vekos/src/priority.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/vekos/src/process.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/vekos/src/proof_storage.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/vekos/src/scheduler.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/vekos/src/serial.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/vekos/src/shell/commands/ls.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/vekos/src/shell/commands/mod.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/vekos/src/shell/display.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/vekos/src/shell/executor.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/vekos/src/shell/mod.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/vekos/src/shell/parser.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/vekos/src/signals.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/vekos/src/swap.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/vekos/src/syscall.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/vekos/src/time.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/vekos/src/tsc.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/vekos/src/tty.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/vekos/src/vbe.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/vekos/src/verification.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/vekos/src/vga_buffer.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/vekos/src/vkfs.rs" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/vekos/x86_64-vekos.json" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/framebuffer.rs" beforeDir="false" afterPath="$PROJECT_DIR$/src/framebuffer.rs" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -91,6 +34,9 @@
 }]]></component>
   <component name="MacroExpansionManager">
     <option name="directoryName" value="ibjFYUQj" />
+  </component>
+  <component name="ProblemsViewState">
+    <option name="selectedTabId" value="CurrentFile" />
   </component>
   <component name="ProjectColorInfo"><![CDATA[{
   "associatedIndex": 4
@@ -174,7 +120,7 @@
       <option name="number" value="Default" />
       <option name="presentableId" value="Default" />
       <updated>1740597041738</updated>
-      <workItem from="1740597043144" duration="393000" />
+      <workItem from="1740597043144" duration="468000" />
     </task>
     <task id="LOCAL-00001" summary="init">
       <option name="closed" value="true" />
@@ -184,18 +130,33 @@
       <option name="project" value="LOCAL" />
       <updated>1740597405599</updated>
     </task>
-    <option name="localTasksCounter" value="2" />
+    <task id="LOCAL-00002" summary="init">
+      <option name="closed" value="true" />
+      <created>1740597489235</created>
+      <option name="number" value="00002" />
+      <option name="presentableId" value="LOCAL-00002" />
+      <option name="project" value="LOCAL" />
+      <updated>1740597489235</updated>
+    </task>
+    <option name="localTasksCounter" value="3" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
     <option name="version" value="3" />
   </component>
+  <component name="UpdateCopyrightCheckinHandler">
+    <option name="UPDATE_COPYRIGHT" value="true" />
+  </component>
   <component name="VcsManagerConfiguration">
+    <option name="CHECK_CODE_CLEANUP_BEFORE_PROJECT_COMMIT" value="true" />
     <ignored-roots>
       <path value="$PROJECT_DIR$/.." />
     </ignored-roots>
     <MESSAGE value="init" />
     <option name="LAST_COMMIT_MESSAGE" value="init" />
+    <option name="OPTIMIZE_IMPORTS_BEFORE_PROJECT_COMMIT" value="true" />
+    <option name="REFORMAT_BEFORE_PROJECT_COMMIT" value="true" />
+    <option name="REARRANGE_BEFORE_PROJECT_COMMIT" value="true" />
   </component>
   <component name="XSLT-Support.FileAssociations.UIState">
     <expand />
