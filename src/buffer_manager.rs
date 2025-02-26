@@ -14,13 +14,13 @@
 * limitations under the License.
 */
 
-use alloc::vec::Vec;
-use core::sync::atomic::{AtomicU64, Ordering};
-use crate::verification::{Hash, OperationProof, Verifiable, VerificationError};
 use crate::hash;
 use crate::serial_println;
-use x86_64::VirtAddr;
+use crate::verification::{Hash, OperationProof, Verifiable, VerificationError};
 use alloc::collections::VecDeque;
+use alloc::vec::Vec;
+use core::sync::atomic::{AtomicU64, Ordering};
+use x86_64::VirtAddr;
 
 const BUFFER_SIZE: usize = 4096;
 const MAX_BUFFERS: usize = 256;
@@ -112,16 +112,19 @@ impl Buffer {
 impl BufferManager {
     pub fn new() -> Self {
         serial_println!("BufferManager: Starting initialization");
-        
+
         const INITIAL_CAPACITY: usize = 32;
-        
+
         let mut free_buffers = Vec::with_capacity(INITIAL_CAPACITY);
 
         for _ in 0..INITIAL_CAPACITY {
             free_buffers.push(Buffer::new(0));
         }
 
-        serial_println!("BufferManager: Created initial {} buffers", INITIAL_CAPACITY);
+        serial_println!(
+            "BufferManager: Created initial {} buffers",
+            INITIAL_CAPACITY
+        );
 
         Self {
             buffers: VecDeque::with_capacity(INITIAL_CAPACITY),
@@ -137,10 +140,7 @@ impl BufferManager {
         }
 
         const GROWTH_CHUNK: usize = 16;
-        let new_size = core::cmp::min(
-            self.free_buffers.len() + GROWTH_CHUNK,
-            MAX_BUFFERS
-        );
+        let new_size = core::cmp::min(self.free_buffers.len() + GROWTH_CHUNK, MAX_BUFFERS);
 
         for _ in self.free_buffers.len()..new_size {
             self.free_buffers.push(Buffer::new(0));
@@ -166,20 +166,18 @@ impl BufferManager {
                     self.evict_one();
                 }
             }
-            
+
             let mut new_buffer = Buffer::new(block_num);
-            
-            
+
             let block_addr = VirtAddr::new(block_num * BUFFER_SIZE as u64);
             unsafe {
                 core::ptr::copy_nonoverlapping(
                     block_addr.as_ptr::<u8>(),
                     new_buffer.data.as_mut_ptr(),
-                    BUFFER_SIZE
+                    BUFFER_SIZE,
                 );
             }
-            
-            
+
             self.buffers.push_back(new_buffer);
             let last_index = self.buffers.len() - 1;
             Some(&mut self.buffers[last_index])
@@ -198,25 +196,25 @@ impl BufferManager {
     }
 
     pub fn flush_all(&mut self) {
-        let dirty_buffers: Vec<_> = self.buffers
+        let dirty_buffers: Vec<_> = self
+            .buffers
             .iter()
             .filter(|b| b.is_dirty())
             .map(|b| (b.block_num, b.data.clone()))
             .collect();
-    
+
         for (block_num, data) in dirty_buffers {
             self.flush_buffer(block_num, data);
         }
     }
 
     fn flush_buffer(&mut self, block_num: u64, data: [u8; BUFFER_SIZE]) {
-        
         let block_addr = block_num * BUFFER_SIZE as u64;
         unsafe {
             core::ptr::copy_nonoverlapping(
                 data.as_ptr(),
                 VirtAddr::new(block_addr).as_mut_ptr(),
-                BUFFER_SIZE
+                BUFFER_SIZE,
             );
         }
         self.stats.writes.fetch_add(1, Ordering::Relaxed);
@@ -227,27 +225,26 @@ impl BufferManager {
             self.stats.hits.load(Ordering::Relaxed),
             self.stats.misses.load(Ordering::Relaxed),
             self.stats.evictions.load(Ordering::Relaxed),
-            self.stats.writes.load(Ordering::Relaxed)
+            self.stats.writes.load(Ordering::Relaxed),
         )
     }
 
     pub fn evict_one(&mut self) {
-        
-        if let Some(idx) = self.buffers.iter()
+        if let Some(idx) = self
+            .buffers
+            .iter()
             .enumerate()
             .filter(|(_, buffer)| !buffer.pinned)
             .min_by_key(|(_, buffer)| (buffer.access_count, buffer.last_access))
             .map(|(idx, _)| idx)
         {
-            
             let buffer = &self.buffers[idx];
             if buffer.dirty {
                 let block_num = buffer.block_num;
                 let data = buffer.data;
                 self.flush_buffer(block_num, data);
             }
-            
-            
+
             self.buffers.remove(idx);
             self.stats.evictions.fetch_add(1, Ordering::Relaxed);
         }
@@ -255,15 +252,16 @@ impl BufferManager {
 }
 
 impl Verifiable for BufferManager {
-    fn generate_proof(&self, operation: crate::verification::Operation) -> Result<OperationProof, VerificationError> {
+    fn generate_proof(
+        &self,
+        operation: crate::verification::Operation,
+    ) -> Result<OperationProof, VerificationError> {
         let prev_state = self.state_hash();
 
         let mut buffer_hashes = Vec::new();
         for buffer in &self.buffers {
-            let buffer_hash = hash::hash_memory(
-                VirtAddr::new(buffer.data.as_ptr() as u64),
-                BUFFER_SIZE
-            );
+            let buffer_hash =
+                hash::hash_memory(VirtAddr::new(buffer.data.as_ptr() as u64), BUFFER_SIZE);
             buffer_hashes.push(buffer_hash);
         }
 
@@ -274,14 +272,12 @@ impl Verifiable for BufferManager {
             op_id: crate::tsc::read_tsc(),
             prev_state,
             new_state,
-            data: crate::verification::ProofData::Memory(
-                crate::verification::MemoryProof {
-                    operation: crate::verification::MemoryOpType::Modify,
-                    address: VirtAddr::new(0),
-                    size: 0,
-                    frame_hash: combined_hash,
-                }
-            ),
+            data: crate::verification::ProofData::Memory(crate::verification::MemoryProof {
+                operation: crate::verification::MemoryOpType::Modify,
+                address: VirtAddr::new(0),
+                size: 0,
+                frame_hash: combined_hash,
+            }),
             signature: [0u8; 64],
         })
     }

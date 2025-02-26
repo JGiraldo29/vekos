@@ -27,9 +27,7 @@ pub struct Font {
 
 impl Font {
     pub fn new() -> Self {
-        Self {
-            data: FONT_DATA,
-        }
+        Self { data: FONT_DATA }
     }
 
     pub fn get_glyph(&self, c: char) -> &[u8] {

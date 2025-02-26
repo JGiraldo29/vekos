@@ -14,42 +14,40 @@
 * limitations under the License.
 */
 
-use x86_64::{
-    VirtAddr,
-};
+use x86_64::VirtAddr;
 
-use x86_64::instructions::interrupts;
-use crate::serial_println;
-use core::slice;
-use crate::FILESYSTEM;
 use crate::fs::normalize_path;
-use x86_64::registers::model_specific::Msr;
-use core::arch::naked_asm;
-use core::arch::asm;
 use crate::fs::validate_path;
-use crate::vga_buffer::WRITER;
-use alloc::string::String;
-use crate::process::PROCESS_LIST;
-use crate::tty;
-use crate::vga_buffer::ColorCode;
-use crate::MEMORY_MANAGER;
-use crate::vga_buffer::Color;
-use x86_64::structures::paging::PageTableFlags;
-use x86_64::structures::paging::Page;
-use x86_64::structures::paging::PhysFrame;
-use x86_64::registers::model_specific::Efer;
-use core::sync::atomic::AtomicU64;
-use x86_64::registers::model_specific::SFMask;
-use x86_64::registers::rflags::RFlags;
-use x86_64::registers::model_specific::Star;
-use x86_64::PhysAddr;
-use x86_64::structures::gdt::SegmentSelector;
-use x86_64::registers::model_specific::LStar;
-use x86_64::structures::paging::FrameAllocator;
 use crate::gdt::GDT;
-use spin::Mutex;
-use lazy_static::lazy_static;
+use crate::process::PROCESS_LIST;
+use crate::serial_println;
+use crate::tty;
+use crate::vga_buffer::Color;
+use crate::vga_buffer::ColorCode;
+use crate::vga_buffer::WRITER;
+use crate::FILESYSTEM;
+use crate::MEMORY_MANAGER;
+use alloc::string::String;
 use alloc::vec::Vec;
+use core::arch::asm;
+use core::arch::naked_asm;
+use core::slice;
+use core::sync::atomic::AtomicU64;
+use lazy_static::lazy_static;
+use spin::Mutex;
+use x86_64::instructions::interrupts;
+use x86_64::registers::model_specific::Efer;
+use x86_64::registers::model_specific::LStar;
+use x86_64::registers::model_specific::Msr;
+use x86_64::registers::model_specific::SFMask;
+use x86_64::registers::model_specific::Star;
+use x86_64::registers::rflags::RFlags;
+use x86_64::structures::gdt::SegmentSelector;
+use x86_64::structures::paging::FrameAllocator;
+use x86_64::structures::paging::Page;
+use x86_64::structures::paging::PageTableFlags;
+use x86_64::structures::paging::PhysFrame;
+use x86_64::PhysAddr;
 
 pub static TOP_OF_KERNEL_STACK: AtomicU64 = AtomicU64::new(0);
 static USER_STACK_SCRATCH: AtomicU64 = AtomicU64::new(0);
@@ -82,13 +80,18 @@ lazy_static! {
     static ref SYSCALL_TABLE: Vec<Option<SyscallFn>> = {
         let mut table = Vec::with_capacity(256);
         table.resize(256, None);
-        
-        table[SyscallNumber::Read as usize] = Some(sys_read as fn(u64, u64, u64, u64, u64, u64) -> u64);
-        table[SyscallNumber::Write as usize] = Some(sys_write as fn(u64, u64, u64, u64, u64, u64) -> u64);
-        table[SyscallNumber::Exit as usize] = Some(sys_exit as fn(u64, u64, u64, u64, u64, u64) -> u64);
-        table[SyscallNumber::Getcwd as usize] = Some(sys_getcwd as fn(u64, u64, u64, u64, u64, u64) -> u64);
-        table[SyscallNumber::Chdir as usize] = Some(sys_chdir as fn(u64, u64, u64, u64, u64, u64) -> u64);
-        
+
+        table[SyscallNumber::Read as usize] =
+            Some(sys_read as fn(u64, u64, u64, u64, u64, u64) -> u64);
+        table[SyscallNumber::Write as usize] =
+            Some(sys_write as fn(u64, u64, u64, u64, u64, u64) -> u64);
+        table[SyscallNumber::Exit as usize] =
+            Some(sys_exit as fn(u64, u64, u64, u64, u64, u64) -> u64);
+        table[SyscallNumber::Getcwd as usize] =
+            Some(sys_getcwd as fn(u64, u64, u64, u64, u64, u64) -> u64);
+        table[SyscallNumber::Chdir as usize] =
+            Some(sys_chdir as fn(u64, u64, u64, u64, u64, u64) -> u64);
+
         table
     };
 }
@@ -103,27 +106,27 @@ pub extern "C" fn dispatch_syscall() {
     let r9: u64;
     let r10: u64;
     let r11: u64;
-    
+
     unsafe {
         asm!(
-            "mov {0}, rax",
-            "mov {1}, rdi",
-            "mov {2}, rsi",
-            "mov {3}, rdx",
-            "mov {4}, r8",
-            "mov {5}, r9",
-            "mov {6}, r10",
-            "mov {7}, r11",
-            out(reg) syscall_nr,
-            out(reg) fd,
-            out(reg) buf,
-            out(reg) count,
-            out(reg) r8,
-            out(reg) r9,
-            out(reg) r10,
-            out(reg) r11,
+        "mov {0}, rax",
+        "mov {1}, rdi",
+        "mov {2}, rsi",
+        "mov {3}, rdx",
+        "mov {4}, r8",
+        "mov {5}, r9",
+        "mov {6}, r10",
+        "mov {7}, r11",
+        out(reg) syscall_nr,
+        out(reg) fd,
+        out(reg) buf,
+        out(reg) count,
+        out(reg) r8,
+        out(reg) r9,
+        out(reg) r10,
+        out(reg) r11,
         );
-        
+
         serial_println!("Syscall registers:");
         serial_println!("  rax (syscall): {:#x}", syscall_nr);
         serial_println!("  rdi (fd): {:#x}", fd);
@@ -150,14 +153,14 @@ pub extern "C" fn dispatch_syscall() {
 
 fn is_valid_user_addr(addr: u64, size: u64) -> bool {
     let prog_valid = addr >= 0x400000 && addr + size <= 0x900000;
-    
+
     let stack_start = 0x7fff00000000;
-    let stack_end   = 0x800000000000;
+    let stack_end = 0x800000000000;
     let stack_valid = addr >= stack_start && addr + size <= stack_end;
-    
+
     serial_println!("Validating address {:#x} with size {}", addr, size);
     serial_println!("prog_valid: {}, stack_valid: {}", prog_valid, stack_valid);
-    
+
     prog_valid || stack_valid
 }
 
@@ -240,7 +243,8 @@ fn sys_getcwd(buf: u64, size: u64, _: u64, _: u64, _: u64, _: u64) -> u64 {
 
     let current_dir = {
         let process_list = PROCESS_LIST.lock();
-        process_list.current()
+        process_list
+            .current()
             .map(|p| p.current_dir.clone())
             .unwrap_or_else(|| String::from("/"))
     };
@@ -257,11 +261,7 @@ fn sys_getcwd(buf: u64, size: u64, _: u64, _: u64, _: u64, _: u64) -> u64 {
 
     unsafe {
         let buffer_ptr = buf as *mut u8;
-        core::ptr::copy_nonoverlapping(
-            current_dir.as_ptr(),
-            buffer_ptr,
-            current_dir.len()
-        );
+        core::ptr::copy_nonoverlapping(current_dir.as_ptr(), buffer_ptr, current_dir.len());
         *buffer_ptr.add(current_dir.len()) = 0;
     }
 
@@ -346,7 +346,6 @@ unsafe extern "x86-interrupt" fn syscall_handler() {
         "swapgs",
         "mov gs:[0x0], rsp",
         "mov rsp, gs:[0x1000]",
-
         "push rax",
         "push rcx",
         "push rdx",
@@ -362,15 +361,11 @@ unsafe extern "x86-interrupt" fn syscall_handler() {
         "push r13",
         "push r14",
         "push r15",
-
         "mov rbp, rsp",
         "and rsp, -16",
         "sub rsp, 32",
-
         "call gs:[0x1008]",
-
         "mov rsp, rbp",
-
         "pop r15",
         "pop r14",
         "pop r13",
@@ -385,7 +380,6 @@ unsafe extern "x86-interrupt" fn syscall_handler() {
         "pop rbx",
         "pop rdx",
         "pop rcx",
-        
         "mov rsp, gs:[0x0]",
         "swapgs",
         "sysretq",
@@ -415,38 +409,41 @@ pub fn init() {
                 }
             }
 
-            let stack_flags = PageTableFlags::PRESENT 
+            let stack_flags = PageTableFlags::PRESENT
                 | PageTableFlags::WRITABLE
                 | PageTableFlags::NO_EXECUTE
                 | PageTableFlags::GLOBAL;
 
-            let handler_flags = PageTableFlags::PRESENT 
-                | PageTableFlags::WRITABLE 
+            let handler_flags = PageTableFlags::PRESENT
+                | PageTableFlags::WRITABLE
                 | PageTableFlags::USER_ACCESSIBLE
                 | PageTableFlags::GLOBAL;
 
             for i in 0..16 {
-                let frame = mm.frame_allocator
+                let frame = mm
+                    .frame_allocator
                     .allocate_frame()
                     .expect("Failed to allocate kernel frame");
-                
+
                 let page = Page::containing_address(kernel_region_start + (i * 4096) as u64);
                 mm.map_page(page, frame, stack_flags)
                     .expect("Failed to map kernel region");
 
-                let frame = mm.frame_allocator
+                let frame = mm
+                    .frame_allocator
                     .allocate_frame()
                     .expect("Failed to allocate scratch frame");
-                
+
                 let page = Page::containing_address(scratch_region_start + (i * 4096) as u64);
                 mm.map_page(page, frame, stack_flags)
                     .expect("Failed to map scratch region");
             }
 
-            let handler_frame = mm.frame_allocator
+            let handler_frame = mm
+                .frame_allocator
                 .allocate_frame()
                 .expect("Failed to allocate handler frame");
-            
+
             let handler_page = Page::containing_address(handler_region);
 
             mm.map_page(handler_page, handler_frame, handler_flags)
@@ -454,28 +451,35 @@ pub fn init() {
 
             let handler_src = syscall_handler as *const u8;
             let handler_dst = handler_region.as_mut_ptr::<u8>();
-            core::ptr::copy_nonoverlapping(
-                handler_src,
-                handler_dst,
-                4096
-            );
+            core::ptr::copy_nonoverlapping(handler_src, handler_dst, 4096);
 
-            serial_println!("Mapped handler to virtual {:#x} physical {:#x}", 
+            serial_println!(
+                "Mapped handler to virtual {:#x} physical {:#x}",
                 handler_region.as_u64(),
-                handler_frame.start_address().as_u64());
+                handler_frame.start_address().as_u64()
+            );
         }
         drop(mm_lock);
 
         serial_println!("Setting up CPU state...");
-        serial_println!("KernelGsBase setting to: {:#x}", kernel_region_start.as_u64());
+        serial_println!(
+            "KernelGsBase setting to: {:#x}",
+            kernel_region_start.as_u64()
+        );
         serial_println!("GsBase setting to: {:#x}", scratch_region_start.as_u64());
         x86_64::registers::model_specific::KernelGsBase::write(kernel_region_start);
         x86_64::registers::model_specific::GsBase::write(scratch_region_start);
 
         let scratch_ptr = scratch_region_start.as_u64() as *mut u64;
         unsafe {
-            core::ptr::write(scratch_ptr.add(0x1000 / 8), kernel_region_start.as_u64() + (16 * 4096));
-            core::ptr::write(scratch_ptr.add(0x1008 / 8), dispatch_syscall as *const () as u64);
+            core::ptr::write(
+                scratch_ptr.add(0x1000 / 8),
+                kernel_region_start.as_u64() + (16 * 4096),
+            );
+            core::ptr::write(
+                scratch_ptr.add(0x1008 / 8),
+                dispatch_syscall as *const () as u64,
+            );
         }
 
         lazy_static::initialize(&SYSCALL_TABLE);
@@ -483,9 +487,14 @@ pub fn init() {
         x86_64::registers::model_specific::Efer::update(|efer| {
             *efer |= x86_64::registers::model_specific::EferFlags::SYSTEM_CALL_EXTENSIONS;
         });
-        
-        x86_64::registers::model_specific::SFMask::write(x86_64::registers::rflags::RFlags::INTERRUPT_FLAG);
-        serial_println!("Handler region for syscalls: {:#x}", handler_region.as_u64());
+
+        x86_64::registers::model_specific::SFMask::write(
+            x86_64::registers::rflags::RFlags::INTERRUPT_FLAG,
+        );
+        serial_println!(
+            "Handler region for syscalls: {:#x}",
+            handler_region.as_u64()
+        );
         x86_64::registers::model_specific::LStar::write(handler_region);
 
         x86_64::registers::model_specific::Star::write(
@@ -493,7 +502,8 @@ pub fn init() {
             SegmentSelector::new(1, x86_64::PrivilegeLevel::Ring3),
             SegmentSelector::new(1, x86_64::PrivilegeLevel::Ring0),
             SegmentSelector::new(2, x86_64::PrivilegeLevel::Ring0),
-        ).expect("Failed to set STAR register");
+        )
+        .expect("Failed to set STAR register");
     }
 
     serial_println!("Syscall initialization complete");

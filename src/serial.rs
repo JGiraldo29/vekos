@@ -14,10 +14,10 @@
 * limitations under the License.
 */
 
-use uart_16550::SerialPort;
-use spin::Mutex;
-use lazy_static::lazy_static;
 use core::fmt::{self, Write};
+use lazy_static::lazy_static;
+use spin::Mutex;
+use uart_16550::SerialPort;
 
 lazy_static! {
     pub static ref SERIAL1: Mutex<SerialPort> = {
@@ -30,11 +30,10 @@ lazy_static! {
 #[doc(hidden)]
 pub fn _print(args: fmt::Arguments) {
     use x86_64::instructions::interrupts;
-    
-    
+
     interrupts::without_interrupts(|| {
         let mut serial_port = SERIAL1.lock();
-        
+
         let _ = serial_port.write_fmt(args);
     });
 }

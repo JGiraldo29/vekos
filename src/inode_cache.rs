@@ -14,17 +14,17 @@
 * limitations under the License.
 */
 
-use alloc::collections::BTreeMap;
-use core::sync::atomic::{AtomicU64, Ordering};
-use crate::vkfs::Inode;
-use crate::verification::{Hash, OperationProof, Verifiable, VerificationError};
-use crate::hash;
-use x86_64::VirtAddr;
-use alloc::vec::Vec;
-use crate::tsc;
-use crate::verification::{Operation, ProofData, FSProof};
-use alloc::string::String;
 use crate::fs::FSOperation;
+use crate::hash;
+use crate::tsc;
+use crate::verification::{FSProof, Operation, ProofData};
+use crate::verification::{Hash, OperationProof, Verifiable, VerificationError};
+use crate::vkfs::Inode;
+use alloc::collections::BTreeMap;
+use alloc::string::String;
+use alloc::vec::Vec;
+use core::sync::atomic::{AtomicU64, Ordering};
+use x86_64::VirtAddr;
 
 const MAX_CACHE_ENTRIES: usize = 1024;
 
@@ -75,7 +75,7 @@ impl InodeCache {
             entry.last_access = self.access_counter.fetch_add(1, Ordering::SeqCst);
             entry.reference_count += 1;
             entry.status = CacheEntryStatus::InUse;
-            entry.inode.access_time = crate::time::Timestamp::now().secs; 
+            entry.inode.access_time = crate::time::Timestamp::now().secs;
             self.stats.hits.fetch_add(1, Ordering::Relaxed);
             Some(&mut entry.inode)
         } else {
@@ -129,7 +129,8 @@ impl InodeCache {
     }
 
     pub fn evict_one(&mut self) {
-        if let Some((&inode_num, _)) = self.entries
+        if let Some((&inode_num, _)) = self
+            .entries
             .iter()
             .filter(|(_, entry)| entry.status == CacheEntryStatus::Clean)
             .min_by_key(|(_, entry)| (entry.reference_count, entry.last_access))
@@ -141,7 +142,7 @@ impl InodeCache {
 
     pub fn flush(&mut self) -> Vec<(u32, Inode)> {
         let mut dirty_inodes = Vec::new();
-        
+
         self.entries.retain(|&inode_num, entry| {
             if entry.status == CacheEntryStatus::Dirty {
                 dirty_inodes.push((inode_num, entry.inode.clone()));
@@ -158,7 +159,7 @@ impl InodeCache {
         (
             self.stats.hits.load(Ordering::Relaxed),
             self.stats.misses.load(Ordering::Relaxed),
-            self.stats.evictions.load(Ordering::Relaxed)
+            self.stats.evictions.load(Ordering::Relaxed),
         )
     }
 }
@@ -166,24 +167,23 @@ impl InodeCache {
 impl Verifiable for InodeCache {
     fn generate_proof(&self, operation: Operation) -> Result<OperationProof, VerificationError> {
         let prev_state = Hash(self.state_hash.load(Ordering::SeqCst));
-        
-        
+
         let mut entry_hashes = Vec::new();
         for (inode_num, entry) in &self.entries {
             let mut hasher = [0u64; 512];
             hasher[0] = *inode_num as u64;
             hasher[1] = entry.last_access;
             hasher[2] = entry.reference_count as u64;
-            
+
             entry_hashes.push(hash::hash_memory(
                 VirtAddr::new(hasher.as_ptr() as u64),
-                core::mem::size_of_val(&hasher)
+                core::mem::size_of_val(&hasher),
             ));
         }
-        
+
         let cache_hash = hash::combine_hashes(&entry_hashes);
         let new_state = Hash(prev_state.0 ^ cache_hash.0);
-        
+
         Ok(OperationProof {
             op_id: tsc::read_tsc(),
             prev_state,
@@ -197,7 +197,9 @@ impl Verifiable for InodeCache {
                 content_hash: cache_hash,
                 prev_state,
                 new_state,
-                op: FSOperation::Create { path: String::new() },
+                op: FSOperation::Create {
+                    path: String::new(),
+                },
             }),
             signature: [0; 64],
         })
@@ -210,13 +212,13 @@ impl Verifiable for InodeCache {
             hasher[0] = *inode_num as u64;
             hasher[1] = entry.last_access;
             hasher[2] = entry.reference_count as u64;
-            
+
             entry_hashes.push(hash::hash_memory(
                 VirtAddr::new(hasher.as_ptr() as u64),
-                core::mem::size_of_val(&hasher)
+                core::mem::size_of_val(&hasher),
             ));
         }
-        
+
         let current_hash = hash::combine_hashes(&entry_hashes);
         Ok(current_hash == proof.new_state)
     }

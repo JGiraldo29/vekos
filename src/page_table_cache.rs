@@ -14,18 +14,16 @@
 * limitations under the License.
 */
 
+use crate::memory::SWAPPED_PAGES;
+use crate::serial_println;
+use crate::swap::DISK_IO;
+use crate::VirtAddr;
+use alloc::collections::BTreeMap;
+use core::sync::atomic::{AtomicU64, Ordering};
 use x86_64::{
-    structures::paging::{
-        PageTable, PhysFrame,
-    },
+    structures::paging::{PageTable, PhysFrame},
     PhysAddr,
 };
-use crate::serial_println;
-use crate::VirtAddr;
-use crate::swap::DISK_IO;
-use alloc::collections::BTreeMap;
-use crate::memory::SWAPPED_PAGES;
-use core::sync::atomic::{AtomicU64, Ordering};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum CacheEntryStatus {
@@ -78,8 +76,7 @@ impl PageTableCache {
 
     pub fn get_or_insert_page_table(&mut self, frame: PhysFrame) -> &mut PageTable {
         let phys_addr = frame.start_address();
-        
-        
+
         if let Some(entry) = self.entries.get_mut(&phys_addr) {
             entry.last_access = self.access_counter.fetch_add(1, Ordering::SeqCst);
             entry.reference_count += 1;
@@ -89,12 +86,10 @@ impl PageTableCache {
             }
         }
 
-        
         if self.entries.len() >= self.max_entries {
             self.evict_one();
         }
 
-        
         let entry = CacheEntry {
             frame,
             status: CacheEntryStatus::Clean,
@@ -105,9 +100,7 @@ impl PageTableCache {
         self.entries.insert(phys_addr, entry);
         self.stats.misses.fetch_add(1, Ordering::Relaxed);
 
-        unsafe {
-            &mut *(phys_addr.as_u64() as *mut PageTable)
-        }
+        unsafe { &mut *(phys_addr.as_u64() as *mut PageTable) }
     }
 
     pub fn get_page_table(&mut self, frame: PhysFrame) -> Option<&mut PageTable> {
@@ -116,13 +109,11 @@ impl PageTableCache {
 
     pub fn insert_page_table(&mut self, frame: PhysFrame, table: &PageTable) {
         let phys_addr = frame.start_address();
-        
-        
+
         if !self.entries.contains_key(&phys_addr) && self.entries.len() >= self.max_entries {
             self.evict_one();
         }
 
-        
         let entry = CacheEntry {
             frame,
             status: CacheEntryStatus::Clean,
@@ -130,21 +121,17 @@ impl PageTableCache {
             reference_count: 1,
         };
 
-        
         unsafe {
             let dest = phys_addr.as_u64() as *mut PageTable;
-            core::ptr::copy_nonoverlapping(
-                table as *const PageTable,
-                dest,
-                1
-            );
+            core::ptr::copy_nonoverlapping(table as *const PageTable, dest, 1);
         }
 
         self.entries.insert(phys_addr, entry);
     }
 
     pub fn evict_one(&mut self) {
-        if let Some((&addr, entry)) = self.entries
+        if let Some((&addr, entry)) = self
+            .entries
             .iter()
             .min_by_key(|(_, entry)| entry.last_access)
         {
@@ -154,12 +141,11 @@ impl PageTableCache {
             }
 
             if entry.status == CacheEntryStatus::Dirty {
-                
                 unsafe {
                     self.flush_page_table(addr);
                 }
             }
-            
+
             self.entries.remove(&addr);
             self.stats.evictions.fetch_add(1, Ordering::Relaxed);
         }
@@ -184,7 +170,7 @@ impl PageTableCache {
         (
             self.stats.hits.load(Ordering::Relaxed),
             self.stats.misses.load(Ordering::Relaxed),
-            self.stats.evictions.load(Ordering::Relaxed)
+            self.stats.evictions.load(Ordering::Relaxed),
         )
     }
 }

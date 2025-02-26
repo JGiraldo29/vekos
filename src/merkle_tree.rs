@@ -14,13 +14,13 @@
 * limitations under the License.
 */
 
-use alloc::vec::Vec;
-use crate::verification::Hash;
 use crate::hash;
-use crate::vkfs::{Directory, DirEntry, Inode};
 use crate::hash_chain::HashChain;
+use crate::verification::Hash;
 use crate::verification::VerificationError;
+use crate::vkfs::{DirEntry, Directory, Inode};
 use alloc::string::String;
+use alloc::vec::Vec;
 use x86_64::VirtAddr;
 
 #[derive(Debug)]
@@ -43,14 +43,10 @@ impl MerkleNode {
     }
 
     pub fn update_hash(&mut self) {
-        let mut child_hashes: Vec<Hash> = self.children.iter()
-            .map(|child| child.hash)
-            .collect();
-        
-        
+        let mut child_hashes: Vec<Hash> = self.children.iter().map(|child| child.hash).collect();
+
         child_hashes.push(self.hash);
-        
-        
+
         self.hash = hash::combine_hashes(&child_hashes);
     }
 }
@@ -88,16 +84,18 @@ impl ConsistencyChecker {
         }
     }
 
-    pub fn verify_transition(&self, dir: &Directory, inodes: &[Option<Inode>]) -> Result<bool, VerificationError> {
-        
+    pub fn verify_transition(
+        &self,
+        dir: &Directory,
+        inodes: &[Option<Inode>],
+    ) -> Result<bool, VerificationError> {
         let mut tree = DirectoryMerkleTree::new(dir);
         tree.build_tree(dir, inodes)?;
-        
+
         if tree.root_hash() != self.current_root {
             return Ok(false);
         }
 
-        
         for proof in &self.verification_proofs {
             if !self.verify_proof(proof, dir)? {
                 return Ok(false);
@@ -107,7 +105,11 @@ impl ConsistencyChecker {
         Ok(true)
     }
 
-    fn verify_proof(&self, proof: &MerkleProof, dir: &Directory) -> Result<bool, VerificationError> {
+    fn verify_proof(
+        &self,
+        proof: &MerkleProof,
+        dir: &Directory,
+    ) -> Result<bool, VerificationError> {
         let mut current_hash = proof.leaf_hash;
         let mut index = proof.index;
 
@@ -115,7 +117,7 @@ impl ConsistencyChecker {
             current_hash = if index % 2 == 0 {
                 hash::combine_hashes(&[current_hash, *sibling])
             } else {
-                hash::combine_hashes(&[*sibling, current_hash]) 
+                hash::combine_hashes(&[*sibling, current_hash])
             };
             index /= 2;
         }
@@ -138,7 +140,7 @@ impl HashChainVerifier {
             chain: HashChain::new(),
         }
     }
-    
+
     pub fn verify_directory_chain(&mut self, dir: &Directory) -> Result<bool, VerificationError> {
         self.chain.add_directory(dir)?;
         self.chain.verify_chain()
@@ -158,23 +160,40 @@ impl DirectoryMerkleTree {
         }
     }
 
-    pub fn build_tree(&mut self, root_dir: &Directory, inodes: &[Option<Inode>]) -> Result<(), VerificationError> {
+    pub fn build_tree(
+        &mut self,
+        root_dir: &Directory,
+        inodes: &[Option<Inode>],
+    ) -> Result<(), VerificationError> {
         self.root = self.build_node(root_dir, inodes)?;
         Ok(())
     }
 
-    pub fn update_node(&mut self, dir: &Directory, inodes: &[Option<Inode>]) -> Result<(), VerificationError> {
+    pub fn update_node(
+        &mut self,
+        dir: &Directory,
+        inodes: &[Option<Inode>],
+    ) -> Result<(), VerificationError> {
         let updated_node = self.build_node(dir, inodes)?;
         self.root = updated_node;
         Ok(())
     }
 
-    pub fn update_tree(&mut self, dir: &Directory, inodes: &[Option<Inode>]) -> Result<Hash, VerificationError> {
+    pub fn update_tree(
+        &mut self,
+        dir: &Directory,
+        inodes: &[Option<Inode>],
+    ) -> Result<Hash, VerificationError> {
         self.update_node(dir, inodes)?;
         Ok(self.root_hash())
     }
 
-    pub fn rebuild_branch(&mut self, path: &[String], dir: &Directory, inodes: &[Option<Inode>]) -> Result<(), VerificationError> {
+    pub fn rebuild_branch(
+        &mut self,
+        path: &[String],
+        dir: &Directory,
+        inodes: &[Option<Inode>],
+    ) -> Result<(), VerificationError> {
         if path.is_empty() {
             return self.update_node(dir, inodes);
         }
@@ -193,23 +212,23 @@ impl DirectoryMerkleTree {
         self.update_node(dir, inodes)
     }
 
-    pub fn verify_consistency(&self, dir: &Directory, inodes: &[Option<Inode>]) -> Result<bool, VerificationError> {
-        
+    pub fn verify_consistency(
+        &self,
+        dir: &Directory,
+        inodes: &[Option<Inode>],
+    ) -> Result<bool, VerificationError> {
         let mut current_tree = DirectoryMerkleTree::new(dir);
         current_tree.build_tree(dir, inodes)?;
 
-        
         if self.root_hash() != current_tree.root_hash() {
             return Ok(false);
         }
 
-        
         for entry in dir.get_entries() {
             if !entry.verify() {
                 return Ok(false);
             }
 
-            
             if let Some(Some(inode)) = inodes.get(entry.get_inode_number() as usize) {
                 if let Some(ref child_dir) = inode.get_directory() {
                     current_tree.build_tree(child_dir, inodes)?;
@@ -223,15 +242,18 @@ impl DirectoryMerkleTree {
         Ok(true)
     }
 
-    fn verify_node_consistency(&self, dir: &Directory, inodes: &[Option<Inode>]) -> Result<bool, VerificationError> {
+    fn verify_node_consistency(
+        &self,
+        dir: &Directory,
+        inodes: &[Option<Inode>],
+    ) -> Result<bool, VerificationError> {
         let node_hash = self.compute_node_hash(dir);
-        
-        
+
         let mut entry_hashes = Vec::new();
         for entry in dir.get_entries() {
             entry_hashes.push(Self::compute_entry_hash(entry));
         }
-        
+
         let computed_hash = hash::combine_hashes(&entry_hashes);
         if computed_hash != node_hash {
             return Ok(false);
@@ -244,16 +266,20 @@ impl DirectoryMerkleTree {
         let mut hasher = [0u64; 512];
         hasher[0] = dir.get_inode_number() as u64;
         hasher[1] = dir.get_parent_inode() as u64;
-        
+
         hash::hash_memory(
             VirtAddr::new(hasher.as_ptr() as u64),
-            core::mem::size_of_val(&hasher)
+            core::mem::size_of_val(&hasher),
         )
     }
 
-    fn build_node(&self, dir: &Directory, inodes: &[Option<Inode>]) -> Result<MerkleNode, VerificationError> {
+    fn build_node(
+        &self,
+        dir: &Directory,
+        inodes: &[Option<Inode>],
+    ) -> Result<MerkleNode, VerificationError> {
         let mut node = MerkleNode::new(Self::compute_directory_hash(dir));
-        
+
         for entry in dir.get_entries() {
             if let Some(Some(inode)) = inodes.get(entry.get_inode_number() as usize) {
                 if let Some(ref child_dir) = inode.get_directory() {
@@ -265,28 +291,25 @@ impl DirectoryMerkleTree {
                 }
             }
         }
-    
+
         Ok(node)
     }
 
     pub fn compute_directory_hash(dir: &Directory) -> Hash {
         let mut entry_hashes = Vec::new();
-        
-        
+
         for entry in dir.get_entries() {
             entry_hashes.push(Self::compute_entry_hash(entry));
         }
 
-        
         let metadata = [
             dir.get_inode_number().to_ne_bytes(),
-            dir.get_parent_inode().to_ne_bytes()
-        ].concat();
+            dir.get_parent_inode().to_ne_bytes(),
+        ]
+        .concat();
 
-        let metadata_hash = hash::hash_memory(
-            VirtAddr::new(metadata.as_ptr() as u64),
-            metadata.len()
-        );
+        let metadata_hash =
+            hash::hash_memory(VirtAddr::new(metadata.as_ptr() as u64), metadata.len());
 
         entry_hashes.push(metadata_hash);
         hash::combine_hashes(&entry_hashes)
@@ -296,20 +319,16 @@ impl DirectoryMerkleTree {
         let entry_data = unsafe {
             core::slice::from_raw_parts(
                 entry as *const _ as *const u8,
-                core::mem::size_of::<DirEntry>()
+                core::mem::size_of::<DirEntry>(),
             )
         };
 
-        hash::hash_memory(
-            VirtAddr::new(entry_data.as_ptr() as u64),
-            entry_data.len()
-        )
+        hash::hash_memory(VirtAddr::new(entry_data.as_ptr() as u64), entry_data.len())
     }
 
     fn compute_file_hash(inode: &Inode) -> Hash {
         let mut block_hashes = Vec::new();
-        
-        
+
         for &block in inode.get_direct_blocks() {
             if block != 0 {
                 block_hashes.push(Hash(block as u64));
@@ -327,7 +346,11 @@ impl DirectoryMerkleTree {
         hash::combine_hashes(&block_hashes)
     }
 
-    pub fn verify(&self, dir: &Directory, inodes: &[Option<Inode>]) -> Result<bool, VerificationError> {
+    pub fn verify(
+        &self,
+        dir: &Directory,
+        inodes: &[Option<Inode>],
+    ) -> Result<bool, VerificationError> {
         let computed_node = self.build_node(dir, inodes)?;
         Ok(computed_node.hash == self.root.hash)
     }
@@ -341,14 +364,14 @@ impl Clone for MerkleNode {
     fn clone(&self) -> Self {
         Self {
             hash: self.hash,
-            children: self.children.clone()
+            children: self.children.clone(),
         }
     }
 }
 
 pub fn verify_directory_tree(
     root_dir: &Directory,
-    inodes: &[Option<Inode>]
+    inodes: &[Option<Inode>],
 ) -> Result<Hash, VerificationError> {
     let mut tree = DirectoryMerkleTree::new(root_dir);
     tree.build_tree(root_dir, inodes)?;

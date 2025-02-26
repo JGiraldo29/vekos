@@ -14,10 +14,10 @@
 * limitations under the License.
 */
 
-use volatile::Volatile;
 use core::fmt;
-use spin::Mutex;
 use lazy_static::lazy_static;
+use spin::Mutex;
+use volatile::Volatile;
 
 #[allow(dead_code)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -72,7 +72,6 @@ pub struct Writer {
 }
 
 impl Writer {
-
     pub fn clear_screen(&mut self) {
         for row in 0..BUFFER_HEIGHT {
             self.clear_row(row);
@@ -104,7 +103,6 @@ impl Writer {
     pub fn set_cursor_position(&mut self, x: usize, y: usize) {
         let pos = y * BUFFER_WIDTH + x;
         unsafe {
-            
             x86_64::instructions::port::Port::new(0x3D4).write(0x0Fu8);
             x86_64::instructions::port::Port::new(0x3D5).write((pos & 0xFF) as u8);
             x86_64::instructions::port::Port::new(0x3D4).write(0x0Eu8);
@@ -166,8 +164,8 @@ impl fmt::Write for Writer {
 
 #[macro_export]
 macro_rules! println {
-    () => (print!("\n"));
-    ($($arg:tt)*) => (print!("{}\n", format_args!($($arg)*)));
+    () => ($crate::print!("\n"));
+    ($($arg:tt)*) => ($crate::print!("{}\n", format_args!($($arg)*)));
 }
 
 #[macro_export]

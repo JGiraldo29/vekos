@@ -90,13 +90,16 @@ impl SignalState {
         }
     }
 
-    pub fn set_handler(&mut self, signal: Signal, handler: SignalHandler) -> Result<(), &'static str> {
+    pub fn set_handler(
+        &mut self,
+        signal: Signal,
+        handler: SignalHandler,
+    ) -> Result<(), &'static str> {
         let sig_num = signal as usize;
         if sig_num >= 32 {
             return Err("Invalid signal number");
         }
-        
-        
+
         if signal == Signal::SIGKILL || signal == Signal::SIGSTOP {
             return Err("Cannot modify handler for SIGKILL or SIGSTOP");
         }

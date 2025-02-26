@@ -14,13 +14,13 @@
 * limitations under the License.
 */
 
-use alloc::vec::Vec;
-use spin::Mutex;
-use crate::verification::{OperationProof, Hash};
-use crate::time::Timestamp;
 use crate::lazy_static;
-use core::sync::atomic::{AtomicU64, Ordering};
+use crate::time::Timestamp;
+use crate::verification::{Hash, OperationProof};
 use alloc::collections::BTreeMap;
+use alloc::vec::Vec;
+use core::sync::atomic::{AtomicU64, Ordering};
+use spin::Mutex;
 
 #[derive(Debug)]
 pub struct ProofStorage {
@@ -48,7 +48,6 @@ impl ProofStorage {
     }
 
     pub fn store_proof(&mut self, proof: OperationProof) -> Result<(), &'static str> {
-        
         if self.proofs.len() >= self.max_proofs {
             self.cleanup_old_proofs();
         }
@@ -60,7 +59,8 @@ impl ProofStorage {
         };
 
         self.proofs.insert(proof.op_id, stored);
-        self.current_state.store(proof.new_state.0, Ordering::SeqCst);
+        self.current_state
+            .store(proof.new_state.0, Ordering::SeqCst);
         Ok(())
     }
 
@@ -70,7 +70,7 @@ impl ProofStorage {
 
     pub fn verify_chain(&self) -> Result<bool, &'static str> {
         let mut current_hash = Hash(0);
-        
+
         for (_, stored) in self.proofs.iter() {
             if stored.proof.prev_state != current_hash {
                 return Ok(false);
@@ -85,9 +85,8 @@ impl ProofStorage {
         let current_time = Timestamp::now().secs;
         let one_hour = 3600;
 
-        self.proofs.retain(|_, stored| {
-            current_time - stored.timestamp < one_hour
-        });
+        self.proofs
+            .retain(|_, stored| current_time - stored.timestamp < one_hour);
     }
 
     pub fn mark_verified(&mut self, op_id: u64) {

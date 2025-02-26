@@ -14,13 +14,13 @@
 * limitations under the License.
 */
 
+use crate::fs::{FileStats, FileSystem, FILESYSTEM};
+use crate::print;
+use crate::println;
+use crate::serial_println;
+use crate::shell::format;
 use alloc::string::String;
 use alloc::vec::Vec;
-use crate::print;
-use crate::fs::{FILESYSTEM, FileSystem, FileStats};
-use crate::println;
-use crate::shell::format;
-use crate::serial_println;
 
 #[derive(Debug, Clone, Copy)]
 pub struct LsFlags {
@@ -122,7 +122,7 @@ pub fn list_directory(path: &str, flags: LsFlags) -> Result<(), &'static str> {
             if !stats.is_directory {
                 return Err("Not a directory");
             }
-        },
+        }
         Err(e) => {
             serial_println!("Failed to stat path: {:?}", e);
             return Err("No such file or directory");
@@ -134,14 +134,15 @@ pub fn list_directory(path: &str, flags: LsFlags) -> Result<(), &'static str> {
         Ok(entries) => {
             serial_println!("Found {} entries", entries.len());
             entries
-        },
+        }
         Err(e) => {
             serial_println!("Failed to list directory: {:?}", e);
             return Err("Failed to read directory");
         }
     };
-    
-    let mut entries = entries.into_iter()
+
+    let mut entries = entries
+        .into_iter()
         .filter(|name| flags.all_files || !name.starts_with('.'))
         .collect::<Vec<_>>();
 
@@ -162,7 +163,7 @@ pub fn list_directory(path: &str, flags: LsFlags) -> Result<(), &'static str> {
             } else {
                 format!("{}/{}", normalized_path, entry)
             };
-            
+
             if let Ok(stats) = fs.stat(&full_path) {
                 let perms = format_permissions(&stats);
                 let size = format_size(stats.size, flags.human_readable);

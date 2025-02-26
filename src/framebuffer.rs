@@ -14,14 +14,12 @@
 * limitations under the License.
 */
 
-use core::ptr::write_volatile;
-use spin::Mutex;
 use crate::serial_println;
-use lazy_static::lazy_static;
-use alloc::vec;
-use alloc::vec::Vec;
 use core::ptr::read_volatile;
+use core::ptr::write_volatile;
+use lazy_static::lazy_static;
 use micromath::F32Ext;
+use spin::Mutex;
 use x86_64::instructions::port::Port;
 
 const VGA_WIDTH: usize = 320;
@@ -81,8 +79,13 @@ impl Framebuffer {
         let offset = y * VGA_WIDTH + x;
 
         if x < 4 {
-            serial_println!("Writing pixel: x={}, y={}, offset={:#x}, value={:#x}", 
-                x, y, offset, pixel.index);
+            serial_println!(
+                "Writing pixel: x={}, y={}, offset={:#x}, value={:#x}",
+                x,
+                y,
+                offset,
+                pixel.index
+            );
         }
 
         unsafe {
@@ -92,7 +95,7 @@ impl Framebuffer {
                 } else {
                     self.front_buffer.add(offset)
                 },
-                pixel.index
+                pixel.index,
             );
         }
     }
@@ -103,7 +106,7 @@ impl Framebuffer {
                 let dx = (x as isize - center_x as isize).abs();
                 let dy = (y as isize - center_y as isize).abs();
                 let distance = ((dx * dx + dy * dy) as f32).sqrt();
-                
+
                 if distance <= radius as f32 {
                     self.plot_pixel(x, y, pixel);
                 }
@@ -114,7 +117,7 @@ impl Framebuffer {
     pub fn draw_char(&mut self, x: usize, y: usize, c: char, pixel: Pixel) {
         let font = crate::font::FONT.lock();
         let glyph = font.get_glyph(c);
-        
+
         for (row, glyph_row) in glyph.iter().enumerate() {
             for col in 0..8 {
                 if (glyph_row & (0x80 >> col)) != 0 {
@@ -137,11 +140,10 @@ impl Framebuffer {
 
     pub fn clear(&mut self, pixel: Pixel) {
         serial_println!("Starting clear with color index {:#x}", pixel.index);
-        
+
         for i in 0..VGA_BUFFER_SIZE {
             if i % VGA_WIDTH == 0 {
-                serial_println!("Writing scanline {}, offset={:#x}", 
-                    i / VGA_WIDTH, i);
+                serial_println!("Writing scanline {}, offset={:#x}", i / VGA_WIDTH, i);
             }
 
             unsafe {
@@ -151,7 +153,7 @@ impl Framebuffer {
                     } else {
                         self.front_buffer.add(i)
                     },
-                    pixel.index
+                    pixel.index,
                 );
             }
         }
@@ -218,7 +220,7 @@ fn debug_vga_state() {
     unsafe {
         let mut crtc_index = Port::<u8>::new(VGA_CRTC_INDEX);
         let mut crtc_data = Port::<u8>::new(VGA_CRTC_DATA);
-        
+
         serial_println!("=== CRTC Register State ===");
         for i in 0..25 {
             crtc_index.write(i as u8);
@@ -228,7 +230,7 @@ fn debug_vga_state() {
 
         let mut seq_index = Port::<u8>::new(VGA_SEQ_INDEX);
         let mut seq_data = Port::<u8>::new(VGA_SEQ_DATA);
-        
+
         serial_println!("=== Sequencer Register State ===");
         for i in 0..5 {
             seq_index.write(i as u8);
@@ -238,7 +240,7 @@ fn debug_vga_state() {
 
         let mut gc_index = Port::<u8>::new(VGA_GC_INDEX);
         let mut gc_data = Port::<u8>::new(VGA_GC_DATA);
-        
+
         serial_println!("=== Graphics Controller Register State ===");
         for i in 0..9 {
             gc_index.write(i as u8);
@@ -257,22 +259,22 @@ fn init_vga_dac() {
         write_index.write(0);
 
         let palette: [(u8, u8, u8); 16] = [
-            (0, 0, 0),       // 0: Black
-            (0, 0, 63),      // 1: Blue
-            (0, 63, 0),      // 2: Green
-            (0, 63, 63),     // 3: Cyan
-            (63, 0, 0),      // 4: Red
-            (63, 0, 63),     // 5: Magenta
-            (63, 32, 0),     // 6: Brown
-            (63, 63, 63),    // 7: Light Gray
-            (32, 32, 32),    // 8: Dark Gray
-            (32, 32, 63),    // 9: Light Blue
-            (32, 63, 32),    // 10: Light Green
-            (32, 63, 63),    // 11: Light Cyan
-            (63, 32, 32),    // 12: Light Red
-            (63, 32, 63),    // 13: Light Magenta
-            (63, 63, 32),    // 14: Yellow
-            (63, 63, 63),    // 15: White
+            (0, 0, 0),    // 0: Black
+            (0, 0, 63),   // 1: Blue
+            (0, 63, 0),   // 2: Green
+            (0, 63, 63),  // 3: Cyan
+            (63, 0, 0),   // 4: Red
+            (63, 0, 63),  // 5: Magenta
+            (63, 32, 0),  // 6: Brown
+            (63, 63, 63), // 7: Light Gray
+            (32, 32, 32), // 8: Dark Gray
+            (32, 32, 63), // 9: Light Blue
+            (32, 63, 32), // 10: Light Green
+            (32, 63, 63), // 11: Light Cyan
+            (63, 32, 32), // 12: Light Red
+            (63, 32, 63), // 13: Light Magenta
+            (63, 63, 32), // 14: Yellow
+            (63, 63, 63), // 15: White
         ];
 
         for (r, g, b) in palette.iter() {
@@ -280,7 +282,7 @@ fn init_vga_dac() {
             dac_data.write(*g);
             dac_data.write(*b);
         }
-        
+
         serial_println!("DAC initialization completed");
     }
 }
@@ -304,13 +306,13 @@ fn verify_mode_13h() {
 
 fn check_vga_status() {
     unsafe {
-        let mut misc_port = Port::<u8>::new(VGA_MISC_WRITE);
+        let _misc_port = Port::<u8>::new(VGA_MISC_WRITE);
         let misc_value = Port::<u8>::new(0x3CC).read();
         serial_println!("Misc Output Register: {:#02x}", misc_value);
 
         let mut seq_index = Port::<u8>::new(VGA_SEQ_INDEX);
         let mut seq_data = Port::<u8>::new(VGA_SEQ_DATA);
-        
+
         seq_index.write(0x00_u8);
         let seq_reset = seq_data.read();
         serial_println!("Sequencer Reset: {:#02x}", seq_reset);
@@ -332,7 +334,6 @@ fn check_vga_status() {
     }
 }
 
-
 fn reset_vga() {
     unsafe {
         serial_println!("Starting VGA reset sequence...");
@@ -350,7 +351,7 @@ fn reset_vga() {
 
         let mut gc_index = Port::<u8>::new(VGA_GC_INDEX);
         let mut gc_data = Port::<u8>::new(VGA_GC_DATA);
-        
+
         for i in 0..9 {
             gc_index.write(i);
             gc_data.write(0x00_u8);
@@ -360,7 +361,7 @@ fn reset_vga() {
         let mut ac_port = Port::<u8>::new(VGA_AC_INDEX);
 
         let _ = instat_port.read();
-        
+
         for i in 0..0x15 {
             ac_port.write(i);
             ac_port.write(0x00_u8);
@@ -368,7 +369,7 @@ fn reset_vga() {
 
         let mut crtc_index = Port::<u8>::new(VGA_CRTC_INDEX);
         let mut crtc_data = Port::<u8>::new(VGA_CRTC_DATA);
-        
+
         for i in 0..0x19 {
             crtc_index.write(i);
             crtc_data.write(0x00_u8);
@@ -379,7 +380,7 @@ fn reset_vga() {
 
         seq_index.write(0x00_u8);
         seq_data.write(0x03_u8);
-        
+
         serial_println!("VGA reset sequence completed");
     }
 }
@@ -388,7 +389,7 @@ fn verify_crtc_offset() {
     unsafe {
         let mut crtc_index = Port::<u8>::new(VGA_CRTC_INDEX);
         let mut crtc_data = Port::<u8>::new(VGA_CRTC_DATA);
-        
+
         crtc_index.write(0x13);
         let offset = crtc_data.read();
         serial_println!("CRTC Offset Register (0x13) = {:#x}", offset);
@@ -402,17 +403,18 @@ fn verify_memory_layout() {
     unsafe {
         let mut crtc_index = Port::<u8>::new(VGA_CRTC_INDEX);
         let mut crtc_data = Port::<u8>::new(VGA_CRTC_DATA);
-        
+
         crtc_index.write(0x13);
         let hardware_offset = crtc_data.read();
         let hardware_stride = (hardware_offset as usize) * 4 * 2;
         let our_stride = VGA_WIDTH;
-        
+
         serial_println!("Memory layout verification:");
         serial_println!("  Hardware offset register: {:#x}", hardware_offset);
         serial_println!("  Hardware stride: {} bytes", hardware_stride);
         serial_println!("  Our stride: {} bytes", our_stride);
-        serial_println!("  Mismatch: {} bytes", 
+        serial_println!(
+            "  Mismatch: {} bytes",
             if hardware_stride > our_stride {
                 hardware_stride - our_stride
             } else {
@@ -432,15 +434,15 @@ fn verify_memory_layout() {
 //             port.read();
 //             while port.read() & 0x08 == 0 {}
 //         }
-//         
+//
 //         fb.double_buffering = true;
-//         
-//         fb.clear(WHITE); 
+//
+//         fb.clear(WHITE);
 //         let center_x = fb.width() / 2;
 //         let center_y = fb.height() / 2;
 //         let radius = 50;
 //         fb.draw_circle(center_x, center_y, radius, BLUE);
-//         
+//
 //         fb.swap_buffers();
 //         fb.double_buffering = false;
 //         serial_println!("Circle test completed");
@@ -450,11 +452,11 @@ fn verify_memory_layout() {
 const MODE_13H_MISC: u8 = 0x63;
 
 const MODE_13H_SEQ: &[u8] = &[
-    0x03,  // Reset
-    0x01,  // Clocking Mode
-    0x0F,  // Map Mask
-    0x00,  // Character Map Select
-    0x0E   // Memory Mode
+    0x03, // Reset
+    0x01, // Clocking Mode
+    0x0F, // Map Mask
+    0x00, // Character Map Select
+    0x0E, // Memory Mode
 ];
 
 const MODE_13H_CRTC: &[u8] = &[
@@ -482,7 +484,7 @@ const MODE_13H_CRTC: &[u8] = &[
     0x96, // 0x15: Start Vertical Blanking
     0xB9, // 0x16: End Vertical Blanking
     0xA3, // 0x17: CRTC Mode Control
-    0xFF  // 0x18: Line Compare
+    0xFF, // 0x18: Line Compare
 ];
 
 const MODE_13H_GC: &[u8] = &[
@@ -494,7 +496,7 @@ const MODE_13H_GC: &[u8] = &[
     0x40, // Graphics Mode
     0x05, // Miscellaneous
     0x0F, // Color Don't Care
-    0xFF  // Bit Mask
+    0xFF, // Bit Mask
 ];
 
 fn write_registers() {
@@ -534,8 +536,13 @@ fn write_registers() {
             let before = crtc_data.read();
             crtc_data.write(value);
             let after = crtc_data.read();
-            serial_println!("Writing CRTC {:#04x}: {:#04x} (before: {:#04x}, after: {:#04x})", 
-                i, value, before, after);
+            serial_println!(
+                "Writing CRTC {:#04x}: {:#04x} (before: {:#04x}, after: {:#04x})",
+                i,
+                value,
+                before,
+                after
+            );
         }
 
         let mut gc_index = Port::<u8>::new(VGA_GC_INDEX);
@@ -561,16 +568,16 @@ fn setup_crtc_timing() {
         crtc_data.write(current & 0x7F_u8);
 
         let timing_values: [(u8, u8); 10] = [
-            (0x00, 0x5F),     // Horizontal total
-            (0x01, 0x4F),     // Horizontal display enable end
-            (0x02, 0x50),     // Start horizontal blanking
-            (0x03, 0x82),     // End horizontal blanking
-            (0x04, 0x54),     // Start horizontal retrace
-            (0x05, 0x80),     // End horizontal retrace
-            (0x06, 0xBF),     // Vertical total
-            (0x07, 0x1F),     // Overflow
-            (0x09, 0x40),     // Maximum scan line - Changed
-            (0x11, 0x0E),     // Vertical retrace end - Changed
+            (0x00, 0x5F), // Horizontal total
+            (0x01, 0x4F), // Horizontal display enable end
+            (0x02, 0x50), // Start horizontal blanking
+            (0x03, 0x82), // End horizontal blanking
+            (0x04, 0x54), // Start horizontal retrace
+            (0x05, 0x80), // End horizontal retrace
+            (0x06, 0xBF), // Vertical total
+            (0x07, 0x1F), // Overflow
+            (0x09, 0x40), // Maximum scan line - Changed
+            (0x11, 0x0E), // Vertical retrace end - Changed
         ];
 
         for (index, value) in timing_values.iter() {
@@ -580,13 +587,13 @@ fn setup_crtc_timing() {
 
         crtc_index.write(0x15_u8);
         crtc_data.write(0x96_u8);
-        
+
         crtc_index.write(0x16_u8);
         crtc_data.write(0xB9_u8);
 
         crtc_index.write(0x13_u8);
         crtc_data.write(0x28_u8);
-        
+
         crtc_index.write(0x14_u8);
         crtc_data.write(0x00_u8);
     }
@@ -611,10 +618,10 @@ fn set_mode_13h() {
         }
 
         let seq_values: [(u8, u8); 4] = [
-            (0x01, 0x01),  // Enable character clocking and screen
-            (0x02, 0x0F),  // Enable writing to all planes
-            (0x03, 0x00),  // No character font select
-            (0x04, 0x08),  // Enable memory access and disable odd/even
+            (0x01, 0x01), // Enable character clocking and screen
+            (0x02, 0x0F), // Enable writing to all planes
+            (0x03, 0x00), // No character font select
+            (0x04, 0x08), // Enable memory access and disable odd/even
         ];
 
         for (index, value) in seq_values.iter() {
@@ -624,8 +631,11 @@ fn set_mode_13h() {
             seq_index.write(*index);
             let readback = seq_data.read();
             if readback != *value {
-                serial_println!("SEQ register write verification failed: wrote {:#04x}, read {:#04x}", 
-                    value, readback);
+                serial_println!(
+                    "SEQ register write verification failed: wrote {:#04x}, read {:#04x}",
+                    value,
+                    readback
+                );
             }
         }
 
@@ -643,15 +653,15 @@ fn set_mode_13h() {
         let mut gc_data = Port::<u8>::new(VGA_GC_DATA);
 
         let gc_values: [(u8, u8); 9] = [
-            (0x00, 0x00),  // Set/Reset
-            (0x01, 0x00),  // Enable Set/Reset
-            (0x02, 0x00),  // Color Compare
-            (0x03, 0x00),  // Data Rotate
-            (0x04, 0x00),  // Read Map Select
-            (0x05, 0x40),  // Mode Register
-            (0x06, 0x05),  // Miscellaneous
-            (0x07, 0x0F),  // Color Don't Care
-            (0x08, 0xFF)   // Bit Mask
+            (0x00, 0x00), // Set/Reset
+            (0x01, 0x00), // Enable Set/Reset
+            (0x02, 0x00), // Color Compare
+            (0x03, 0x00), // Data Rotate
+            (0x04, 0x00), // Read Map Select
+            (0x05, 0x40), // Mode Register
+            (0x06, 0x05), // Miscellaneous
+            (0x07, 0x0F), // Color Don't Care
+            (0x08, 0xFF), // Bit Mask
         ];
 
         for (index, value) in gc_values.iter() {
@@ -661,8 +671,11 @@ fn set_mode_13h() {
             gc_index.write(*index);
             let readback = gc_data.read();
             if readback != *value {
-                serial_println!("GC register write verification failed: wrote {:#04x}, read {:#04x}", 
-                    value, readback);
+                serial_println!(
+                    "GC register write verification failed: wrote {:#04x}, read {:#04x}",
+                    value,
+                    readback
+                );
             }
         }
 
@@ -676,30 +689,30 @@ fn set_mode_13h() {
 
 pub fn init() {
     serial_println!("Starting VGA initialization...");
-    
+
     serial_println!("Initial VGA state:");
     debug_vga_state();
-    
+
     reset_vga();
-    
+
     serial_println!("Post-reset VGA state:");
     debug_vga_state();
-    
+
     set_mode_13h();
-    
+
     serial_println!("Post-Mode 13h VGA state:");
     debug_vga_state();
-    
+
     write_registers();
-    verify_mode_13h(); 
-    
+    verify_mode_13h();
+
     serial_println!("Final VGA state:");
     debug_vga_state();
-    
+
     init_vga_dac();
 
-    let mut fb = Framebuffer::new();
+    let fb = Framebuffer::new();
     *FRAMEBUFFER.lock() = Some(fb);
-    
+
     // test_solid_color();
 }

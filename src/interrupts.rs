@@ -14,27 +14,21 @@
 * limitations under the License.
 */
 
-use x86_64::structures::idt::{InterruptDescriptorTable, InterruptStackFrame, PageFaultErrorCode};
-use crate::{print, println};
-use pic8259::ChainedPics;
-use crate::boot_verification::ComponentType::GDT;
-use x86_64::VirtAddr;
-use x86_64::PrivilegeLevel;
-use core::arch::asm;
-use crate::elf;
-use spin;
-use crate::tty;
-use lazy_static::lazy_static;
-use x86_64::structures::paging::FrameAllocator;
-use pc_keyboard::{layouts, HandleControl, Keyboard, ScancodeSet1, KeyCode};
-use crate::time::SYSTEM_TIME;
+use crate::memory::PageFault;
+use crate::println;
+use crate::process::PROCESS_LIST;
+use crate::process::USER_STACK_SIZE;
 use crate::scheduler::SCHEDULER;
 use crate::serial_println;
+use crate::time::SYSTEM_TIME;
+use crate::tty;
 use crate::MEMORY_MANAGER;
-use crate::process::PROCESS_LIST;
+use lazy_static::lazy_static;
+use pc_keyboard::{layouts, HandleControl, KeyCode, Keyboard, ScancodeSet1};
+use pic8259::ChainedPics;
+use spin;
 use x86_64::instructions::port::Port;
-use crate::process::USER_STACK_SIZE;
-use crate::memory::PageFault;
+use x86_64::structures::idt::{InterruptDescriptorTable, InterruptStackFrame, PageFaultErrorCode};
 
 pub const PIC_1_OFFSET: u8 = 32;
 pub const PIC_2_OFFSET: u8 = PIC_1_OFFSET + 8;
@@ -71,52 +65,48 @@ lazy_static! {
                 .set_handler_fn(double_fault_handler)
                 .set_stack_index(crate::gdt::DOUBLE_FAULT_IST_INDEX);
         }
-        idt.general_protection_fault.set_handler_fn(general_protection_fault_handler);
+        idt.general_protection_fault
+            .set_handler_fn(general_protection_fault_handler);
         idt.page_fault.set_handler_fn(page_fault_handler);
-        idt[InterruptIndex::Timer.as_usize()]
-            .set_handler_fn(timer_interrupt_handler);
-        idt[InterruptIndex::Keyboard.as_usize()]
-            .set_handler_fn(keyboard_interrupt_handler);
+        idt[InterruptIndex::Timer.as_usize()].set_handler_fn(timer_interrupt_handler);
+        idt[InterruptIndex::Keyboard.as_usize()].set_handler_fn(keyboard_interrupt_handler);
         idt
     };
 }
 
 lazy_static! {
-    static ref KEYBOARD: spin::Mutex<Keyboard<layouts::Jis109Key, ScancodeSet1>> = spin::Mutex::new(
-        Keyboard::new(ScancodeSet1::new(), layouts::Jis109Key, HandleControl::Ignore)
-    );
+    static ref KEYBOARD: spin::Mutex<Keyboard<layouts::Jis109Key, ScancodeSet1>> =
+        spin::Mutex::new(Keyboard::new(
+            ScancodeSet1::new(),
+            layouts::Jis109Key,
+            HandleControl::Ignore
+        ));
 }
 
 unsafe fn reset_keyboard_controller() {
-    
     let mut command_port = Port::<u8>::new(0x64);
     let mut data_port = Port::<u8>::new(0x60);
-    
-    
-    command_port.write(0xAD);  
-    command_port.write(0xA7);  
-    
-    
+
+    command_port.write(0xAD);
+    command_port.write(0xA7);
+
     while (command_port.read() & 1) == 1 {
         data_port.read();
     }
-    
-    
-    command_port.write(0x20);  
+
+    command_port.write(0x20);
     while (command_port.read() & 1) == 0 {}
     let mut config = data_port.read();
-    
-    config |= 1;  
-    config &= !0x10;  
-    
-    command_port.write(0x60);  
+
+    config |= 1;
+    config &= !0x10;
+
+    command_port.write(0x60);
     while (command_port.read() & 2) != 0 {}
     data_port.write(config);
-    
-    
-    command_port.write(0xAE);  
-    
-    
+
+    command_port.write(0xAE);
+
     data_port.write(0xFF);
     while (command_port.read() & 1) == 0 {}
     let _ack = data_port.read();
@@ -127,8 +117,9 @@ extern "x86-interrupt" fn breakpoint_handler(stack_frame: InterruptStackFrame) {
 }
 
 extern "x86-interrupt" fn double_fault_handler(
-    stack_frame: InterruptStackFrame, _error_code: u64) -> ! 
-{
+    stack_frame: InterruptStackFrame,
+    _error_code: u64,
+) -> ! {
     panic!("EXCEPTION: DOUBLE FAULT\n{:#?}", stack_frame);
 }
 
@@ -147,25 +138,26 @@ extern "x86-interrupt" fn page_fault_handler(
     error_code: PageFaultErrorCode,
 ) {
     use x86_64::registers::control::Cr2;
-    
+
     let fault_addr = Cr2::read();
     let present = error_code.contains(PageFaultErrorCode::PROTECTION_VIOLATION);
     let write = error_code.contains(PageFaultErrorCode::CAUSED_BY_WRITE);
     let user = error_code.contains(PageFaultErrorCode::USER_MODE);
     let instruction_fetch = error_code.contains(PageFaultErrorCode::INSTRUCTION_FETCH);
-    
+
     serial_println!("PAGE FAULT");
     serial_println!("Page fault at address: {:#x}", fault_addr.as_u64());
     serial_println!("Error code: {:?}", error_code);
     serial_println!("Stack Frame: {:#x?}", stack_frame);
-    
+
     let mut handled = false;
-    
+
     if !present && user && write {
         if let Some(current) = PROCESS_LIST.lock().current() {
             if let Some(stack_top) = current.user_stack_top() {
-                if fault_addr.as_u64() <= stack_top.as_u64() && 
-                   fault_addr.as_u64() >= stack_top.as_u64() - USER_STACK_SIZE as u64 {
+                if fault_addr.as_u64() <= stack_top.as_u64()
+                    && fault_addr.as_u64() >= stack_top.as_u64() - USER_STACK_SIZE as u64
+                {
                     let mut mm_lock = MEMORY_MANAGER.lock();
                     if let Some(mm) = mm_lock.as_mut() {
                         if mm.handle_stack_growth(fault_addr).is_ok() {
@@ -176,7 +168,7 @@ extern "x86-interrupt" fn page_fault_handler(
             }
         }
     }
-    
+
     if !handled && present && write {
         let mut mm_lock = MEMORY_MANAGER.lock();
         if let Some(ref mut mm) = *mm_lock {
@@ -185,8 +177,7 @@ extern "x86-interrupt" fn page_fault_handler(
             }
         }
     }
-    
-    
+
     if !handled && !present && !instruction_fetch {
         let mut mm_lock = MEMORY_MANAGER.lock();
         if let Some(mm) = mm_lock.as_mut() {
@@ -199,47 +190,48 @@ extern "x86-interrupt" fn page_fault_handler(
             }
         }
     }
-    
+
     if !handled {
         if user {
-            
             let mut process_list = PROCESS_LIST.lock();
             if let Some(current) = process_list.current_mut() {
                 serial_println!("Killing process {} due to page fault", current.id().0);
-                current.exit(-11, &mut MEMORY_MANAGER.lock().as_mut().unwrap()).unwrap_or(());
+                current
+                    .exit(-11, &mut MEMORY_MANAGER.lock().as_mut().unwrap())
+                    .unwrap_or(());
             }
         } else {
-            panic!("Unhandled kernel page fault:\n{:#?}\nError Code: {:?}\nAddress: {:#x}",
-                stack_frame, error_code, fault_addr.as_u64());
+            panic!(
+                "Unhandled kernel page fault:\n{:#?}\nError Code: {:?}\nAddress: {:#x}",
+                stack_frame,
+                error_code,
+                fault_addr.as_u64()
+            );
         }
     }
 }
 
-extern "x86-interrupt" fn timer_interrupt_handler(
-    _stack_frame: InterruptStackFrame)
-{
+extern "x86-interrupt" fn timer_interrupt_handler(_stack_frame: InterruptStackFrame) {
     SYSTEM_TIME.tick();
-    
+
     {
         let mut scheduler = SCHEDULER.lock();
         scheduler.tick();
     }
-    
+
     unsafe {
         PICS.lock()
             .notify_end_of_interrupt(InterruptIndex::Timer.as_u8());
     }
 }
 
-extern "x86-interrupt" fn keyboard_interrupt_handler(
-    _stack_frame: InterruptStackFrame)
-{
-    use x86_64::instructions::port::Port;
+extern "x86-interrupt" fn keyboard_interrupt_handler(_stack_frame: InterruptStackFrame) {
     use pc_keyboard::DecodedKey;
+    use x86_64::instructions::port::Port;
 
     let mut port = Port::new(0x60);
     let scancode: u8 = unsafe { port.read() };
-    
+
     serial_println!("Keyboard interrupt: scancode={:#x}", scancode);
 
     unsafe {
@@ -248,14 +240,14 @@ extern "x86-interrupt" fn keyboard_interrupt_handler(
     }
 
     let mut keyboard = KEYBOARD.lock();
-    
+
     if let Ok(Some(key_event)) = keyboard.add_byte(scancode) {
         if let Some(key) = keyboard.process_keyevent(key_event) {
             match key {
                 DecodedKey::Unicode(character) => {
                     serial_println!("Received character: {}", character);
                     tty::process_keyboard_input(character as u8);
-                },
+                }
                 DecodedKey::RawKey(key) => {
                     serial_println!("Received raw key: {:?}", key);
                     match key {
@@ -263,22 +255,22 @@ extern "x86-interrupt" fn keyboard_interrupt_handler(
                             tty::process_keyboard_input(27);
                             tty::process_keyboard_input(b'[');
                             tty::process_keyboard_input(b'D');
-                        },
+                        }
                         KeyCode::ArrowRight => {
                             tty::process_keyboard_input(27);
                             tty::process_keyboard_input(b'[');
                             tty::process_keyboard_input(b'C');
-                        },
+                        }
                         KeyCode::ArrowUp => {
                             tty::process_keyboard_input(27);
                             tty::process_keyboard_input(b'[');
                             tty::process_keyboard_input(b'A');
-                        },
+                        }
                         KeyCode::ArrowDown => {
                             tty::process_keyboard_input(27);
                             tty::process_keyboard_input(b'[');
                             tty::process_keyboard_input(b'B');
-                        },
+                        }
                         KeyCode::Backspace => tty::process_keyboard_input(8),
                         KeyCode::Delete => tty::process_keyboard_input(127),
                         _ => {}
@@ -291,21 +283,19 @@ extern "x86-interrupt" fn keyboard_interrupt_handler(
 
 pub fn init_idt() {
     IDT.load();
-    
+
     unsafe {
         PICS.lock().write_masks(0xfd, 0xff);
         PICS.lock().initialize();
-        
-        
+
         reset_keyboard_controller();
-        
-        
+
         for _ in 0..10000 {
             core::hint::spin_loop();
         }
-        
+
         x86_64::instructions::interrupts::enable();
     }
-    
+
     serial_println!("IDT, PIC, and keyboard initialization completed");
 }

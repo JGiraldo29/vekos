@@ -14,10 +14,10 @@
 * limitations under the License.
 */
 
-use core::cmp::Ordering;
+use crate::process::ProcessId;
 use alloc::collections::BinaryHeap;
 use alloc::vec::Vec;
-use crate::process::ProcessId;
+use core::cmp::Ordering;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct ProcessPriority {
@@ -28,11 +28,10 @@ pub struct ProcessPriority {
 
 impl ProcessPriority {
     pub fn new(pid: ProcessId, priority: u8) -> Self {
-        
         let time_slice = match priority {
-            0..=3 => 50,    
-            4..=7 => 100,   
-            _ => 200,       
+            0..=3 => 50,
+            4..=7 => 100,
+            _ => 200,
         };
 
         Self {
@@ -45,8 +44,8 @@ impl ProcessPriority {
 
 impl Ord for ProcessPriority {
     fn cmp(&self, other: &Self) -> Ordering {
-        
-        self.priority.cmp(&other.priority)
+        self.priority
+            .cmp(&other.priority)
             .then_with(|| self.pid.0.cmp(&other.pid.0))
     }
 }
@@ -78,10 +77,7 @@ impl PriorityScheduler {
 
     pub fn remove_process(&mut self, pid: ProcessId) {
         self.process_priorities.retain(|p| p.pid != pid);
-        let new_queue: BinaryHeap<_> = self.ready_queue
-            .drain()
-            .filter(|p| p.pid != pid)
-            .collect();
+        let new_queue: BinaryHeap<_> = self.ready_queue.drain().filter(|p| p.pid != pid).collect();
         self.ready_queue = new_queue;
     }
 
@@ -90,7 +86,8 @@ impl PriorityScheduler {
     }
 
     pub fn requeue_process(&mut self, pid: ProcessId) {
-        if let Some(priority) = self.process_priorities
+        if let Some(priority) = self
+            .process_priorities
             .iter()
             .find(|p| p.pid == pid)
             .cloned()

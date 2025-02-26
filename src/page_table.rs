@@ -14,17 +14,17 @@
 * limitations under the License.
 */
 
+use crate::{
+    hash,
+    verification::{Hash, OperationProof, Verifiable, VerificationError},
+};
+use alloc::vec::Vec;
+use core::sync::atomic::{AtomicU64, Ordering};
+use spin::Mutex;
 use x86_64::{
     structures::paging::{PageTable, PageTableFlags},
     VirtAddr,
 };
-use crate::{
-    verification::{Hash, VerificationError, Verifiable, OperationProof},
-    hash,
-};
-use spin::Mutex;
-use core::sync::atomic::{AtomicU64, Ordering};
-use alloc::vec::Vec;
 
 pub struct PageTableVerifier {
     current_hash: AtomicU64,
@@ -38,7 +38,7 @@ impl PageTableVerifier {
             level_hashes: [
                 Mutex::new(Hash(0)),
                 Mutex::new(Hash(0)),
-                Mutex::new(Hash(0)), 
+                Mutex::new(Hash(0)),
                 Mutex::new(Hash(0)),
             ],
         }
@@ -47,22 +47,18 @@ impl PageTableVerifier {
     pub fn hash_level(&self, table: &PageTable, level: usize) -> Result<Hash, VerificationError> {
         let mut hasher = [0u64; 512];
 
-        
         for (i, entry) in table.iter().enumerate() {
             let flags = entry.flags();
             let addr = entry.addr().as_u64();
-            
-            
+
             hasher[i] = flags.bits() ^ (addr.rotate_left(17));
         }
 
-        
         let level_hash = hash::hash_memory(
             VirtAddr::new(hasher.as_ptr() as u64),
-            core::mem::size_of_val(&hasher)
+            core::mem::size_of_val(&hasher),
         );
 
-        
         *self.level_hashes[level].lock() = level_hash;
 
         Ok(level_hash)
@@ -82,15 +78,16 @@ impl PageTableVerifier {
     pub fn hash_hierarchy(&self, root: &PageTable) -> Result<Hash, VerificationError> {
         let mut level_hashes = Vec::with_capacity(4);
 
-        
         let mut current = root;
         for level in 0..4 {
             let hash = self.hash_level(current, level)?;
             level_hashes.push(hash);
 
-            
             if level < 3 {
-                if let Some(entry) = current.iter().find(|e| e.flags().contains(PageTableFlags::PRESENT)) {
+                if let Some(entry) = current
+                    .iter()
+                    .find(|e| e.flags().contains(PageTableFlags::PRESENT))
+                {
                     let phys = entry.addr();
                     let virt = VirtAddr::new(phys.as_u64());
                     current = unsafe { &*(virt.as_ptr()) };
@@ -98,7 +95,6 @@ impl PageTableVerifier {
             }
         }
 
-        
         let combined = hash::combine_hashes(&level_hashes);
         self.current_hash.store(combined.0, Ordering::SeqCst);
 
@@ -113,16 +109,17 @@ impl PageTableVerifier {
             return Ok(false);
         }
 
-        
         let mut current_table = root;
         for level in 0..4 {
             if !self.verify_level(current_table, level)? {
                 return Ok(false);
             }
 
-            
             if level < 3 {
-                if let Some(entry) = current_table.iter().find(|e| e.flags().contains(PageTableFlags::PRESENT)) {
+                if let Some(entry) = current_table
+                    .iter()
+                    .find(|e| e.flags().contains(PageTableFlags::PRESENT))
+                {
                     let phys = entry.addr();
                     let virt = VirtAddr::new(phys.as_u64());
                     current_table = unsafe { &*(virt.as_ptr()) };
@@ -135,13 +132,14 @@ impl PageTableVerifier {
 }
 
 impl Verifiable for PageTableVerifier {
-    fn generate_proof(&self, operation: crate::verification::Operation) -> Result<OperationProof, VerificationError> {
-        
+    fn generate_proof(
+        &self,
+        operation: crate::verification::Operation,
+    ) -> Result<OperationProof, VerificationError> {
         unimplemented!()
     }
 
     fn verify_proof(&self, proof: &OperationProof) -> Result<bool, VerificationError> {
-        
         unimplemented!()
     }
 
@@ -149,7 +147,6 @@ impl Verifiable for PageTableVerifier {
         Hash(self.current_hash.load(Ordering::SeqCst))
     }
 }
-
 
 #[cfg(test)]
 mod tests {
@@ -160,18 +157,17 @@ mod tests {
     fn test_page_table_hashing() {
         let verifier = PageTableVerifier::new();
         let mut table = PageTable::new();
-        
-        
-        table[0].set_addr(PhysAddr::new(0x1000), PageTableFlags::PRESENT);
-        table[1].set_addr(PhysAddr::new(0x2000), PageTableFlags::PRESENT | PageTableFlags::WRITABLE);
 
-        
+        table[0].set_addr(PhysAddr::new(0x1000), PageTableFlags::PRESENT);
+        table[1].set_addr(
+            PhysAddr::new(0x2000),
+            PageTableFlags::PRESENT | PageTableFlags::WRITABLE,
+        );
+
         assert!(verifier.hash_level(&table, 0).is_ok());
 
-        
         table[0].set_addr(PhysAddr::new(0x3000), PageTableFlags::PRESENT);
 
-        
         let new_hash = verifier.hash_level(&table, 0).unwrap();
         assert_ne!(new_hash, *verifier.level_hashes[0].lock());
     }

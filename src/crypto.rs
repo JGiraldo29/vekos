@@ -43,15 +43,15 @@ impl CryptoVerifier {
         let mut y1 = [0u8; 32];
         let mut x2 = [0u8; 32];
         let mut y2 = [0u8; 32];
-        
+
         x1.copy_from_slice(&p[0..32]);
         y1.copy_from_slice(&q[0..32]);
-        
+
         for i in 0..32 {
             x2[i] = x1[i] ^ q[i];
             y2[i] = y1[i] ^ q[i];
         }
-        
+
         r.copy_from_slice(&x2);
     }
 
@@ -59,7 +59,7 @@ impl CryptoVerifier {
         let mut accumulator = [0u8; 32];
         let mut current = [0u8; 32];
         current.copy_from_slice(p);
-        
+
         for i in 0..8 {
             for j in 0..8 {
                 if (k[i] >> j) & 1 == 1 {
@@ -72,18 +72,17 @@ impl CryptoVerifier {
                 current.copy_from_slice(&temp);
             }
         }
-        
+
         q.copy_from_slice(&accumulator);
     }
 
     fn edwards25519_base_scalar_mul(&self, k: &[u8; 32], p: &mut [u8; 32]) {
         let base_point = [
-            0x58, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66,
-            0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66,
-            0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66,
-            0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66,
+            0x58, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66,
+            0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66,
+            0x66, 0x66, 0x66, 0x66,
         ];
-        
+
         self.edwards25519_scalar_mul(k, &base_point, p);
     }
 
@@ -97,19 +96,18 @@ impl CryptoVerifier {
 
     fn reduce_scalar(&self, s: &mut [u8; 32]) {
         const L: [u8; 32] = [
-            0xed, 0xd3, 0xf5, 0x5c, 0x1a, 0x63, 0x12, 0x58,
-            0xd6, 0x9c, 0xf7, 0xa2, 0xde, 0xf9, 0xde, 0x14,
-            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x10,
+            0xed, 0xd3, 0xf5, 0x5c, 0x1a, 0x63, 0x12, 0x58, 0xd6, 0x9c, 0xf7, 0xa2, 0xde, 0xf9,
+            0xde, 0x14, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x10,
         ];
-        
+
         let mut carry: i16 = 0;
         for i in 0..32 {
             carry += s[i] as i16 - L[i] as i16;
             s[i] = (carry & 0xff) as u8;
             carry = carry.wrapping_shr(8);
         }
-        
+
         let mask = !(carry & 1) as u8;
         for i in 0..32 {
             s[i] &= mask;
@@ -134,58 +132,67 @@ impl CryptoVerifier {
         p
     }
 
-    pub fn verify_signature(&self, data: &[u8], signature: &[u8; ED25519_SIGNATURE_LENGTH]) -> bool {
+    pub fn verify_signature(
+        &self,
+        data: &[u8],
+        signature: &[u8; ED25519_SIGNATURE_LENGTH],
+    ) -> bool {
         if signature.iter().all(|&b| b == 0) {
             return false;
         }
 
-        
         if let Some(result) = self.try_hardware_verify(data, signature) {
             return result;
         }
 
-        
         self.verify_signature_software(data, signature)
     }
-    
+
     pub fn set_verification_key(&mut self, key: &[u8; VKFS_KEY_LENGTH]) {
         self.verification_key[..].copy_from_slice(key);
     }
 
-    fn try_hardware_verify(&self, data: &[u8], signature: &[u8; ED25519_SIGNATURE_LENGTH]) -> Option<bool> {
+    fn try_hardware_verify(
+        &self,
+        data: &[u8],
+        signature: &[u8; ED25519_SIGNATURE_LENGTH],
+    ) -> Option<bool> {
         unsafe {
-            
             let cpuid = core::arch::x86_64::__cpuid(7);
-            if (cpuid.ecx & (1 << 17)) == 0 {  
+            if (cpuid.ecx & (1 << 17)) == 0 {
                 return None;
             }
-            
+
             let mut result: u64;
             core::arch::asm!(
-                "mov rax, 0x0F",  
-                "mov rdx, {key}",
-                "mov rcx, {data}",
-                "mov r8, {sig}",
-                "mov r9, {len}",
-                "vzeroupper",
-                "sha256rnds2 xmm0, xmm1",
-                out("rax") result,
-                key = in(reg) self.verification_key.as_ptr(),
-                data = in(reg) data.as_ptr(),
-                sig = in(reg) signature.as_ptr(),
-                len = in(reg) data.len(),
-                options(nostack, preserves_flags)
+            "mov rax, 0x0F",
+            "mov rdx, {key}",
+            "mov rcx, {data}",
+            "mov r8, {sig}",
+            "mov r9, {len}",
+            "vzeroupper",
+            "sha256rnds2 xmm0, xmm1",
+            out("rax") result,
+            key = in(reg) self.verification_key.as_ptr(),
+            data = in(reg) data.as_ptr(),
+            sig = in(reg) signature.as_ptr(),
+            len = in(reg) data.len(),
+            options(nostack, preserves_flags)
             );
-            
+
             Some(result == 1)
         }
     }
 
-    fn verify_signature_software(&self, data: &[u8], signature: &[u8; ED25519_SIGNATURE_LENGTH]) -> bool {
+    fn verify_signature_software(
+        &self,
+        data: &[u8],
+        signature: &[u8; ED25519_SIGNATURE_LENGTH],
+    ) -> bool {
         if signature.len() != ED25519_SIGNATURE_LENGTH {
             return false;
         }
-    
+
         let r_bytes = &signature[0..32];
         let s_bytes = &signature[32..64];
 
@@ -193,7 +200,7 @@ impl CryptoVerifier {
             Some(r) => r,
             None => return false,
         };
-        
+
         let s = match self.decode_scalar(s_bytes) {
             Some(s) => s,
             None => return false,
@@ -205,16 +212,21 @@ impl CryptoVerifier {
         hasher.update(&self.verification_key[..ED25519_PUBLIC_KEY_LENGTH]);
         hasher.update(data);
         h.copy_from_slice(&hasher.finalize());
-        
+
         let h = match self.decode_scalar(&h) {
             Some(h) => h,
             None => return false,
         };
 
         let sb = self.scalar_multiply_base(&s);
-        let ha = self.scalar_multiply(&h, &self.decode_point(&self.verification_key[..]).unwrap_or_default());
+        let ha = self.scalar_multiply(
+            &h,
+            &self
+                .decode_point(&self.verification_key[..])
+                .unwrap_or_default(),
+        );
         let r_plus_ha = self.point_add(&r, &ha);
-        
+
         constant_time_eq(&sb, &r_plus_ha)
     }
 
@@ -222,27 +234,27 @@ impl CryptoVerifier {
         if bytes.len() != 32 {
             return None;
         }
-        
+
         let mut p = [0u8; 32];
         p.copy_from_slice(bytes);
 
         if !self.is_on_curve(&p) {
             return None;
         }
-        
+
         Some(p)
     }
-    
+
     fn decode_scalar(&self, bytes: &[u8]) -> Option<[u8; 32]> {
         if bytes.len() != 32 {
             return None;
         }
-        
+
         let mut s = [0u8; 32];
         s.copy_from_slice(bytes);
 
         self.reduce_scalar(&mut s);
-        
+
         Some(s)
     }
 }
@@ -274,7 +286,7 @@ impl Sha512 {
         let mut result = [0u8; 64];
         for i in 0..8 {
             let bytes = self.state[i].to_be_bytes();
-            result[i*8..(i+1)*8].copy_from_slice(&bytes);
+            result[i * 8..(i + 1) * 8].copy_from_slice(&bytes);
         }
         result
     }
@@ -289,7 +301,6 @@ fn constant_time_eq(a: &[u8; 32], b: &[u8; 32]) -> bool {
 }
 
 lazy_static! {
-    pub static ref CRYPTO_VERIFIER: Mutex<CryptoVerifier> = Mutex::new(
-        CryptoVerifier::new([0; VKFS_KEY_LENGTH])
-    );
+    pub static ref CRYPTO_VERIFIER: Mutex<CryptoVerifier> =
+        Mutex::new(CryptoVerifier::new([0; VKFS_KEY_LENGTH]));
 }

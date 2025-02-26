@@ -15,9 +15,9 @@
 */
 
 use crate::{
-    verification::{Hash, VerificationError},
     hash,
-    vkfs::{Directory, DirEntry, Inode},
+    verification::{Hash, VerificationError},
+    vkfs::{DirEntry, Directory, Inode},
 };
 use alloc::vec::Vec;
 use x86_64::VirtAddr;
@@ -71,27 +71,26 @@ impl HashChain {
 
     pub fn verify_chain(&self) -> Result<bool, VerificationError> {
         let mut current = Hash(0);
-        
+
         for node in &self.nodes {
             if node.prev_hash != current {
                 return Ok(false);
             }
-            
+
             current = node.hash;
         }
-        
+
         Ok(current == self.current_hash)
     }
 
     pub fn add_directory(&mut self, dir: &Directory) -> Result<(), VerificationError> {
         let mut entry_hashes = Vec::new();
-        
-        
+
         for entry in dir.get_entries() {
             let entry_hash = Self::hash_entry(entry);
             entry_hashes.push(entry_hash);
         }
-        
+
         let node = ChainNode {
             prev_hash: self.current_hash,
             hash: hash::combine_hashes(&entry_hashes),
@@ -100,42 +99,38 @@ impl HashChain {
                 entries: entry_hashes,
             }),
         };
-        
-        
+
         let node_hash = node.hash;
         self.nodes.push(node);
         self.current_hash = node_hash;
         Ok(())
     }
-    
 
     pub fn add_file(&mut self, inode: &Inode) -> Result<(), VerificationError> {
         let mut block_hashes = Vec::new();
-        
-        
+
         for &block in inode.get_direct_blocks() {
             if block != 0 {
                 block_hashes.push(Hash(block as u64));
             }
         }
-        
-        
+
         if inode.get_indirect_block() != 0 {
             block_hashes.push(Hash(inode.get_indirect_block() as u64));
         }
-        
+
         let node = ChainNode {
             prev_hash: self.current_hash,
             hash: hash::combine_hashes(&block_hashes),
             node_type: NodeType::File(FileNode {
-                inode: inode.get_directory()
+                inode: inode
+                    .get_directory()
                     .ok_or(VerificationError::InvalidState)?
                     .get_inode_number(),
                 blocks: block_hashes,
             }),
         };
-        
-        
+
         let node_hash = node.hash;
         self.nodes.push(node);
         self.current_hash = node_hash;
@@ -146,14 +141,11 @@ impl HashChain {
         let entry_data = unsafe {
             core::slice::from_raw_parts(
                 entry as *const _ as *const u8,
-                core::mem::size_of::<DirEntry>()
+                core::mem::size_of::<DirEntry>(),
             )
         };
 
-        hash::hash_memory(
-            VirtAddr::new(entry_data.as_ptr() as u64),
-            entry_data.len()
-        )
+        hash::hash_memory(VirtAddr::new(entry_data.as_ptr() as u64), entry_data.len())
     }
 
     pub fn verify_directory(&self, dir: &Directory) -> Result<bool, VerificationError> {
@@ -161,17 +153,14 @@ impl HashChain {
         for entry in dir.get_entries() {
             entry_hashes.push(Self::hash_entry(entry));
         }
-        
+
         let dir_hash = hash::combine_hashes(&entry_hashes);
-        
-        Ok(self.nodes.iter().any(|node| {
-            match &node.node_type {
-                NodeType::Directory(dir_node) => {
-                    dir_node.inode == dir.get_inode_number() && 
-                    node.hash == dir_hash
-                },
-                _ => false
+
+        Ok(self.nodes.iter().any(|node| match &node.node_type {
+            NodeType::Directory(dir_node) => {
+                dir_node.inode == dir.get_inode_number() && node.hash == dir_hash
             }
+            _ => false,
         }))
     }
 
@@ -182,21 +171,18 @@ impl HashChain {
                 block_hashes.push(Hash(block as u64));
             }
         }
-        
+
         let file_hash = hash::combine_hashes(&block_hashes);
-        
-        Ok(self.nodes.iter().any(|node| {
-            match &node.node_type {
-                NodeType::File(file_node) => {
-                    if let Some(dir) = inode.get_directory() {
-                        file_node.inode == dir.get_inode_number() && 
-                        node.hash == file_hash
-                    } else {
-                        false
-                    }
-                },
-                _ => false
+
+        Ok(self.nodes.iter().any(|node| match &node.node_type {
+            NodeType::File(file_node) => {
+                if let Some(dir) = inode.get_directory() {
+                    file_node.inode == dir.get_inode_number() && node.hash == file_hash
+                } else {
+                    false
+                }
             }
+            _ => false,
         }))
     }
 }

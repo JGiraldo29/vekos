@@ -14,29 +14,29 @@
 * limitations under the License.
 */
 
+use crate::alloc::string::ToString;
+use crate::hash;
+use crate::serial_println;
+use crate::time::Timestamp;
+use crate::tsc;
+use crate::verification::FSOpType;
+use crate::verification::FSProof;
+use crate::verification::Operation;
+use crate::verification::ProofData;
+use crate::vkfs::Superblock;
+use crate::Hash;
+use crate::OperationProof;
+use crate::Verifiable;
+use crate::VerificationError;
+use crate::VirtAddr;
+use alloc::format;
 use alloc::string::String;
 use alloc::vec::Vec;
-use spin::Mutex;
-use crate::alloc::string::ToString;
-use lazy_static::lazy_static;
-use crate::time::Timestamp;
-use crate::Hash;
 use core::sync::atomic::AtomicBool;
-use crate::OperationProof;
-use crate::verification::FSProof;
-use crate::verification::ProofData;
-use crate::serial_println;
-use crate::verification::FSOpType;
-use crate::Verifiable;
-use crate::verification::Operation;
-use crate::VerificationError;
-use crate::hash;
-use crate::vkfs::Superblock;
-use alloc::format;
-use crate::tsc;
-use core::sync::atomic::{AtomicU64, Ordering as AtomicOrdering};
 use core::sync::atomic::Ordering;
-use crate::VirtAddr;
+use core::sync::atomic::{AtomicU64, Ordering as AtomicOrdering};
+use lazy_static::lazy_static;
+use spin::Mutex;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct FilePermissions {
@@ -47,16 +47,9 @@ pub struct FilePermissions {
 
 #[derive(Debug, Clone)]
 pub enum FSOperation {
-    Write {
-        path: String,
-        data: Vec<u8>,
-    },
-    Create {
-        path: String,
-    },
-    Delete {
-        path: String,
-    },
+    Write { path: String, data: Vec<u8> },
+    Create { path: String },
+    Delete { path: String },
 }
 
 #[derive(Debug)]
@@ -149,7 +142,7 @@ impl PathComponents {
             .filter(|s| !s.is_empty() && *s != ".")
             .map(String::from)
             .collect();
-        
+
         Self {
             components,
             is_absolute,
@@ -190,7 +183,7 @@ impl PathComponents {
 pub fn normalize_path(path: &str) -> String {
     let mut components = Vec::new();
     let is_absolute = path.starts_with('/');
-    
+
     for component in path.split('/') {
         match component {
             "" | "." => continue,
@@ -200,14 +193,18 @@ pub fn normalize_path(path: &str) -> String {
                 } else if !is_absolute {
                     components.push("..");
                 }
-            },
+            }
             name => components.push(name),
         }
     }
-    
-    let mut result = if is_absolute { "/".to_string() } else { String::new() };
+
+    let mut result = if is_absolute {
+        "/".to_string()
+    } else {
+        String::new()
+    };
     result.push_str(&components.join("/"));
-    
+
     if result.is_empty() {
         "/".to_string()
     } else {
@@ -217,10 +214,10 @@ pub fn normalize_path(path: &str) -> String {
 
 pub fn validate_path(fs: &mut InMemoryFs, path: &str) -> Result<FileStats, FsError> {
     serial_println!("Validating path: {}", path);
-    
+
     let normalized = normalize_path(path);
     serial_println!("Normalized path: {}", normalized);
-    
+
     if normalized == "/" {
         return Ok(FileStats {
             size: 0,
@@ -240,21 +237,22 @@ pub fn validate_path(fs: &mut InMemoryFs, path: &str) -> Result<FileStats, FsErr
     } else {
         &normalized
     };
-    
+
     let stats = fs.stat(path_to_check)?;
-    
+
     if !stats.is_directory {
         serial_println!("validate_path: {} is not a directory", normalized);
         return Err(FsError::NotADirectory);
     }
-    
+
     serial_println!("validate_path: {} is valid directory", normalized);
     Ok(stats)
 }
 
 pub trait FileSystem {
     fn create_file(&mut self, path: &str, permissions: FilePermissions) -> Result<(), FsError>;
-    fn create_directory(&mut self, path: &str, permissions: FilePermissions) -> Result<(), FsError>;
+    fn create_directory(&mut self, path: &str, permissions: FilePermissions)
+        -> Result<(), FsError>;
     fn read_file(&mut self, path: &str) -> Result<Vec<u8>, FsError>;
     fn write_file(&mut self, path: &str, contents: &[u8]) -> Result<(), FsError>;
     fn stat(&mut self, path: &str) -> Result<FileStats, FsError>;
@@ -283,7 +281,7 @@ impl Clone for InodeData {
 struct Inode {
     name: String,
     data: InodeData,
-    children: Option<Vec<Inode>>, 
+    children: Option<Vec<Inode>>,
 }
 
 impl Clone for Inode {
@@ -316,7 +314,7 @@ impl InMemoryFs {
                     time
                 }
             };
-    
+
             serial_println!("DEBUG: Creating permissions structure");
             let permissions = FilePermissions {
                 read: true,
@@ -324,7 +322,7 @@ impl InMemoryFs {
                 execute: true,
             };
             serial_println!("DEBUG: Permissions created successfully");
-    
+
             serial_println!("DEBUG: Creating complete FileStats structure");
             let stats = FileStats {
                 size: 0,
@@ -336,7 +334,7 @@ impl InMemoryFs {
             serial_println!("DEBUG: Root stats structure created successfully");
             stats
         };
-    
+
         serial_println!("DEBUG: Starting root inode data creation");
         let root_data = {
             let data = InodeData {
@@ -347,7 +345,7 @@ impl InMemoryFs {
             serial_println!("DEBUG: Root inode data created successfully");
             data
         };
-    
+
         serial_println!("DEBUG: Creating root inode structure");
         let root = {
             let inode = Inode {
@@ -358,19 +356,19 @@ impl InMemoryFs {
             serial_println!("DEBUG: Root inode structure created successfully");
             inode
         };
-    
+
         serial_println!("DEBUG: Creating filesystem structure");
-        let fs = Self { 
+        let fs = Self {
             root,
             fs_hash: AtomicU64::new(0),
             superblock: Superblock::new(1024 * 1024, 1024),
             initialized: AtomicBool::new(false),
         };
-        
+
         if fs.root.children.is_none() {
             serial_println!("CRITICAL ERROR: Root children vector is None!");
         }
-    
+
         serial_println!("DEBUG: Filesystem structure created");
         fs
     }
@@ -415,7 +413,7 @@ impl InMemoryFs {
         };
 
         let program = include_bytes!("../programs/VETests");
-        
+
         match self.create_file("/programs/VETests", exec_permissions) {
             Ok(_) => match self.write_file("/programs/VETests", program) {
                 Ok(_) => serial_println!("Created and wrote the program successfully"),
@@ -441,30 +439,18 @@ impl InMemoryFs {
         let current = Hash(self.fs_hash.load(AtomicOrdering::SeqCst));
         let op_hash = match op {
             FSOperation::Write { path, data } => {
-                let mut hasher = hash::hash_memory(
-                    VirtAddr::new(data.as_ptr() as u64),
-                    data.len()
-                );
-                hasher.0 ^= hash::hash_memory(
-                    VirtAddr::new(path.as_ptr() as u64),
-                    path.len()
-                ).0;
+                let mut hasher = hash::hash_memory(VirtAddr::new(data.as_ptr() as u64), data.len());
+                hasher.0 ^= hash::hash_memory(VirtAddr::new(path.as_ptr() as u64), path.len()).0;
                 hasher
-            },
+            }
             FSOperation::Create { path } => {
-                hash::hash_memory(
-                    VirtAddr::new(path.as_ptr() as u64),
-                    path.len()
-                )
-            },
+                hash::hash_memory(VirtAddr::new(path.as_ptr() as u64), path.len())
+            }
             FSOperation::Delete { path } => {
-                let mut hash = hash::hash_memory(
-                    VirtAddr::new(path.as_ptr() as u64),
-                    path.len()
-                );
+                let mut hash = hash::hash_memory(VirtAddr::new(path.as_ptr() as u64), path.len());
                 hash.0 = !hash.0;
                 hash
-            },
+            }
         };
         Hash(current.0 ^ op_hash.0)
     }
@@ -472,18 +458,17 @@ impl InMemoryFs {
     pub fn verify_operation(&self, op: &FSOperation) -> Result<OperationProof, FsError> {
         let prev_hash = self.fs_hash.load(AtomicOrdering::SeqCst);
         let new_state = self.compute_new_state(op);
-        
+
         let proof = FSProof {
             prev_state: Hash(prev_hash),
             new_state,
             op: op.clone(),
             content_hash: match op {
-                FSOperation::Write { path, .. } |
-                FSOperation::Create { path } |
-                FSOperation::Delete { path } => hash::hash_memory(
-                    VirtAddr::new(path.as_ptr() as u64),
-                    path.len()
-                ),
+                FSOperation::Write { path, .. }
+                | FSOperation::Create { path }
+                | FSOperation::Delete { path } => {
+                    hash::hash_memory(VirtAddr::new(path.as_ptr() as u64), path.len())
+                }
             },
             operation: match op {
                 FSOperation::Write { .. } => FSOpType::Modify,
@@ -491,12 +476,12 @@ impl InMemoryFs {
                 FSOperation::Delete { .. } => FSOpType::Delete,
             },
             path: match op {
-                FSOperation::Write { path, .. } |
-                FSOperation::Create { path } |
-                FSOperation::Delete { path } => path.clone(),
+                FSOperation::Write { path, .. }
+                | FSOperation::Create { path }
+                | FSOperation::Delete { path } => path.clone(),
             },
         };
-        
+
         Ok(OperationProof {
             op_id: tsc::read_tsc(),
             prev_state: Hash(prev_hash),
@@ -512,32 +497,33 @@ impl InMemoryFs {
             serial_println!("Returning root inode");
             return Ok(&mut self.root);
         }
-    
+
         let mut current = &mut self.root;
         let parts: Vec<&str> = path.split('/').filter(|s| !s.is_empty()).collect();
-        
+
         serial_println!("Path components: {:?}", parts);
-    
+
         for (i, part) in parts.iter().enumerate() {
-            let children = current.children.as_mut()
-                .ok_or_else(|| {
-                    serial_println!("Not a directory at component {}: {}", i, current.name);
-                    FsError::NotADirectory
-                })?;
-    
-            current = children.iter_mut()
+            let children = current.children.as_mut().ok_or_else(|| {
+                serial_println!("Not a directory at component {}: {}", i, current.name);
+                FsError::NotADirectory
+            })?;
+
+            current = children
+                .iter_mut()
                 .find(|node| node.name == *part)
                 .ok_or_else(|| {
                     serial_println!("Component not found: {} (at position {})", part, i);
                     FsError::NotFound
                 })?;
-            
-            serial_println!("Found component: {} is_directory={}", 
+
+            serial_println!(
+                "Found component: {} is_directory={}",
                 part,
                 current.children.is_some()
             );
         }
-    
+
         Ok(current)
     }
 }
@@ -545,22 +531,18 @@ impl InMemoryFs {
 impl FileSystem for InMemoryFs {
     fn create_file(&mut self, path: &str, permissions: FilePermissions) -> Result<(), FsError> {
         serial_println!("Creating file: {}", path);
-    
+
         let (dir_path, file_name) = match path.rfind('/') {
             Some(pos) => {
-                let parent = if pos == 0 {
-                    "/"
-                } else {
-                    &path[..pos]
-                };
+                let parent = if pos == 0 { "/" } else { &path[..pos] };
                 let name = &path[pos + 1..];
                 (parent, name)
-            },
+            }
             None => return Err(FsError::InvalidName),
         };
-        
+
         serial_println!("Creating {} in parent {}", file_name, dir_path);
-    
+
         let parent_inode = match self.find_inode(dir_path) {
             Ok(inode) => inode,
             Err(e) => {
@@ -568,12 +550,12 @@ impl FileSystem for InMemoryFs {
                 return Err(e);
             }
         };
-        
+
         if !parent_inode.data.stats.is_directory {
             serial_println!("Parent {} is not a directory", dir_path);
             return Err(FsError::NotADirectory);
         }
-    
+
         let children = match parent_inode.children.as_mut() {
             Some(c) => c,
             None => {
@@ -581,12 +563,12 @@ impl FileSystem for InMemoryFs {
                 return Err(FsError::NotADirectory);
             }
         };
-    
+
         if children.iter().any(|node| node.name == file_name) {
             serial_println!("File {} already exists in {}", file_name, dir_path);
             return Err(FsError::AlreadyExists);
         }
-    
+
         let now = FileTime::now();
         let stats = FileStats {
             size: 0,
@@ -595,7 +577,7 @@ impl FileSystem for InMemoryFs {
             modified: now,
             is_directory: false,
         };
-    
+
         children.push(Inode {
             name: String::from(file_name),
             data: InodeData {
@@ -605,7 +587,7 @@ impl FileSystem for InMemoryFs {
             },
             children: None,
         });
-    
+
         serial_println!("Successfully created file {}", path);
         Ok(())
     }
@@ -614,16 +596,19 @@ impl FileSystem for InMemoryFs {
         self.sync()
     }
 
-    fn create_directory(&mut self, path: &str, permissions: FilePermissions) -> Result<(), FsError> {
+    fn create_directory(
+        &mut self,
+        path: &str,
+        permissions: FilePermissions,
+    ) -> Result<(), FsError> {
         let (dir_path, dir_name) = match path.rfind('/') {
             Some(pos) => (&path[..pos], &path[pos + 1..]),
             None => return Err(FsError::InvalidName),
         };
 
         let parent = self.find_inode(if dir_path.is_empty() { "/" } else { dir_path })?;
-        
-        let children = parent.children.as_mut()
-            .ok_or(FsError::NotADirectory)?;
+
+        let children = parent.children.as_mut().ok_or(FsError::NotADirectory)?;
 
         if children.iter().any(|node| node.name == dir_name) {
             return Err(FsError::AlreadyExists);
@@ -656,22 +641,22 @@ impl FileSystem for InMemoryFs {
         if inode.children.is_some() {
             return Err(FsError::IsDirectory);
         }
-        
+
         if inode.data.stats.size > inode.data.data.len() {
             return Err(FsError::IoError);
         }
-        
+
         Ok(inode.data.data.clone())
     }
 
     fn write_file(&mut self, path: &str, contents: &[u8]) -> Result<(), FsError> {
         serial_println!("Writing to file: {} (size: {} bytes)", path, contents.len());
-        
+
         if path.is_empty() || path.contains('\0') {
             serial_println!("Invalid path: empty or contains null");
             return Err(FsError::InvalidName);
         }
-    
+
         let (dir_path, file_name) = match path.rfind('/') {
             Some(pos) => (&path[..pos], &path[pos + 1..]),
             None => {
@@ -679,7 +664,7 @@ impl FileSystem for InMemoryFs {
                 return Err(FsError::InvalidName);
             }
         };
-    
+
         let parent = match self.find_inode(if dir_path.is_empty() { "/" } else { dir_path }) {
             Ok(node) => node,
             Err(e) => {
@@ -687,12 +672,12 @@ impl FileSystem for InMemoryFs {
                 return Err(e);
             }
         };
-        
+
         if !parent.data.stats.permissions.write {
             serial_println!("Parent directory lacks write permission");
             return Err(FsError::PermissionDenied);
         }
-    
+
         let inode = match self.find_inode(path) {
             Ok(node) => node,
             Err(e) => {
@@ -704,7 +689,7 @@ impl FileSystem for InMemoryFs {
         inode.data.data = contents.to_vec();
         inode.data.stats.size = contents.len();
         inode.data.stats.modified = FileTime::now();
-        
+
         serial_println!("Successfully wrote {} bytes to {}", contents.len(), path);
         Ok(())
     }
@@ -712,11 +697,12 @@ impl FileSystem for InMemoryFs {
     fn stat(&mut self, path: &str) -> Result<FileStats, FsError> {
         serial_println!("Attempting to stat path: {}", path);
         let inode = self.find_inode(path)?;
-        serial_println!("Found inode for path: {} is_directory={}", 
-            path, 
+        serial_println!(
+            "Found inode for path: {} is_directory={}",
+            path,
             inode.data.stats.is_directory
         );
-        
+
         Ok(inode.data.stats.clone())
     }
 
@@ -725,9 +711,7 @@ impl FileSystem for InMemoryFs {
 
         if path == "/" {
             if let Some(children) = &self.root.children {
-                return Ok(children.iter()
-                    .map(|node| node.name.clone())
-                    .collect());
+                return Ok(children.iter().map(|node| node.name.clone()).collect());
             }
         }
 
@@ -737,10 +721,8 @@ impl FileSystem for InMemoryFs {
         }
 
         match &inode.children {
-            Some(children) => Ok(children.iter()
-                .map(|node| node.name.clone())
-                .collect()),
-            None => Ok(Vec::new())
+            Some(children) => Ok(children.iter().map(|node| node.name.clone()).collect()),
+            None => Ok(Vec::new()),
         }
     }
 }
@@ -748,18 +730,21 @@ impl FileSystem for InMemoryFs {
 impl Verifiable for InMemoryFs {
     fn generate_proof(&self, operation: Operation) -> Result<OperationProof, VerificationError> {
         match operation {
-            Operation::Filesystem { path, operation_type } => {
+            Operation::Filesystem {
+                path,
+                operation_type,
+            } => {
                 let op = match operation_type {
                     FSOpType::Create => FSOperation::Create { path },
                     FSOpType::Delete => FSOperation::Delete { path },
-                    FSOpType::Modify => FSOperation::Write { 
+                    FSOpType::Modify => FSOperation::Write {
                         path: path.clone(),
-                        data: Vec::new() 
+                        data: Vec::new(),
                     },
                 };
                 self.verify_operation(&op)
                     .map_err(|_| VerificationError::OperationFailed)
-            },
+            }
             _ => Err(VerificationError::InvalidOperation),
         }
     }
@@ -769,7 +754,7 @@ impl Verifiable for InMemoryFs {
             ProofData::Filesystem(fs_proof) => {
                 let current_hash = self.compute_new_state(&fs_proof.op);
                 Ok(current_hash == proof.new_state)
-            },
+            }
             _ => Err(VerificationError::InvalidProof),
         }
     }

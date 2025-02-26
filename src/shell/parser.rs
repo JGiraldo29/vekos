@@ -72,7 +72,7 @@ impl<'a> Parser<'a> {
 
     fn parse_quoted_string(&mut self, quote: char) -> Result<String, ParseError> {
         let mut result = String::new();
-        self.advance(); 
+        self.advance();
 
         while let Some(c) = self.current {
             match c {
@@ -107,42 +107,42 @@ impl<'a> Parser<'a> {
 
     fn parse_word(&mut self) -> String {
         let mut result = String::new();
-        
+
         while let Some(c) = self.current {
             match c {
                 c if c.is_whitespace() => {
                     break;
-                },
+                }
                 '|' | '>' | '<' => {
                     break;
-                },
+                }
                 '\\' => {
                     self.advance();
                     if let Some(escaped) = self.current {
                         result.push(escaped);
                     }
-                },
+                }
                 _ => {
                     result.push(c);
                 }
             }
             self.advance();
         }
-        
+
         result
     }
 
     pub fn parse(&mut self) -> Result<Vec<Token>, ParseError> {
         let mut is_first_token = true;
         self.tokens.clear();
-    
+
         while let Some(c) = self.current {
             self.skip_whitespace();
-            
+
             if self.current.is_none() {
                 break;
             }
-    
+
             let token = match self.current.unwrap() {
                 '"' | '\'' => {
                     let value = self.parse_quoted_string(self.current.unwrap())?;
@@ -154,21 +154,21 @@ impl<'a> Parser<'a> {
                             TokenType::Argument
                         },
                     }
-                },
+                }
                 '|' => {
                     self.advance();
                     Token {
                         value: String::from("|"),
                         token_type: TokenType::Pipe,
                     }
-                },
+                }
                 '>' | '<' => {
                     self.advance();
                     Token {
                         value: String::from(if c == '>' { ">" } else { "<" }),
                         token_type: TokenType::Redirect,
                     }
-                },
+                }
                 _ => {
                     let word = self.parse_word();
                     if word.is_empty() {
@@ -185,15 +185,15 @@ impl<'a> Parser<'a> {
                     }
                 }
             };
-    
+
             self.tokens.push(token);
             is_first_token = false;
         }
-    
+
         if self.tokens.is_empty() {
             return Err(ParseError::EmptyCommand);
         }
-    
+
         self.validate_syntax()?;
         Ok(self.tokens.clone())
     }
@@ -205,17 +205,17 @@ impl<'a> Parser<'a> {
             match (&token.token_type, prev_token.map(|t| &t.token_type)) {
                 (TokenType::Pipe, Some(TokenType::Pipe)) => {
                     return Err(ParseError::InvalidSyntax(
-                        "Cannot have two consecutive pipes".into()
+                        "Cannot have two consecutive pipes".into(),
                     ));
                 }
                 (TokenType::Redirect, Some(TokenType::Redirect)) => {
                     return Err(ParseError::InvalidSyntax(
-                        "Cannot have two consecutive redirects".into()
+                        "Cannot have two consecutive redirects".into(),
                     ));
                 }
                 (TokenType::Pipe, None) => {
                     return Err(ParseError::InvalidSyntax(
-                        "Cannot start command with pipe".into()
+                        "Cannot start command with pipe".into(),
                     ));
                 }
                 _ => {}
@@ -223,12 +223,11 @@ impl<'a> Parser<'a> {
             prev_token = Some(token);
         }
 
-        
         if let Some(last_token) = self.tokens.last() {
             match last_token.token_type {
                 TokenType::Pipe | TokenType::Redirect => {
                     return Err(ParseError::InvalidSyntax(
-                        "Cannot end command with pipe or redirect".into()
+                        "Cannot end command with pipe or redirect".into(),
                     ));
                 }
                 _ => {}

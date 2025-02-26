@@ -14,26 +14,26 @@
 * limitations under the License.
 */
 
+use crate::process::PROCESS_LIST;
+use crate::serial_println;
+use crate::syscall::KEYBOARD_BUFFER;
+use crate::vga_buffer::{Color, WRITER};
+use crate::Process;
+use alloc::format;
 use alloc::string::String;
 use alloc::vec::Vec;
-use crate::vga_buffer::{WRITER, Color};
-use crate::serial_println;
-use alloc::format;
-use crate::syscall::KEYBOARD_BUFFER;
-use crate::process::PROCESS_LIST;
 use core::fmt::Write;
-use crate::Process;
 mod commands;
+use crate::alloc::string::ToString;
+use crate::fs::normalize_path;
+use crate::vga_buffer::BUFFER_HEIGHT;
 use crate::vga_buffer::BUFFER_WIDTH;
 use crate::MEMORY_MANAGER;
-use crate::fs::normalize_path;
-use crate::alloc::string::ToString;
-use crate::vga_buffer::BUFFER_HEIGHT;
 
 mod display;
 use display::ShellDisplay;
-mod parser;
 mod executor;
+mod parser;
 use executor::CommandExecutor;
 use parser::{Parser, TokenType};
 
@@ -101,7 +101,6 @@ struct InputBuffer {
     render_offset: usize,
 }
 
-
 impl InputBuffer {
     fn new() -> Self {
         Self {
@@ -115,11 +114,10 @@ impl InputBuffer {
         if self.buffer.len() >= 1024 {
             return false;
         }
-        
+
         self.buffer.insert(self.cursor_position, byte);
         self.cursor_position += 1;
-        
-        
+
         if self.cursor_position > self.render_offset + BUFFER_WIDTH {
             self.render_offset = self.cursor_position - BUFFER_WIDTH;
         }
@@ -181,31 +179,36 @@ impl Shell {
             let mut writer = WRITER.lock();
             writer.clear_screen();
             writer.enable_cursor();
-            writer.write_str("VEKOS Kernel Shell v0.0.1\n").map_err(|_| ShellError::IOError)?;
-            writer.write_str("Type 'help' for available commands\n\n").map_err(|_| ShellError::IOError)?;
+            writer
+                .write_str("VEKOS Kernel Shell v0.0.1\n")
+                .map_err(|_| ShellError::IOError)?;
+            writer
+                .write_str("Type 'help' for available commands\n\n")
+                .map_err(|_| ShellError::IOError)?;
         }
 
         let mut process_list = PROCESS_LIST.lock();
         let mut memory_manager = MEMORY_MANAGER.lock();
-        
+
         if process_list.current().is_none() {
             if let Some(mm) = memory_manager.as_mut() {
                 match Process::new(mm) {
                     Ok(mut init_process) => {
                         init_process.current_dir = String::from("/");
-                        process_list.add(init_process)
+                        process_list
+                            .add(init_process)
                             .map_err(|_| ShellError::InternalError)?;
-                    },
+                    }
                     Err(_) => return Err(ShellError::InternalError),
                 }
             }
         }
-    
+
         {
             let mut keyboard_buffer = KEYBOARD_BUFFER.lock();
             keyboard_buffer.clear();
         }
-    
+
         serial_println!("Shell initialized successfully");
         Ok(ExitCode::Success)
     }
@@ -219,76 +222,70 @@ impl Shell {
     pub fn run(&mut self) -> ShellResult {
         while self.is_running {
             self.display_prompt()?;
-            
+
             match self.read_command()? {
                 ExitCode::Success => continue,
                 exit_code => return Ok(exit_code),
             }
         }
-    
+
         Ok(ExitCode::Success)
     }
 
     fn display_prompt(&mut self) -> ShellResult {
         self.display.set_prompt(format!("{}> ", self.current_dir));
         let prompt_pos = self.display.render_prompt();
-        
-        
+
         let mut writer = WRITER.lock();
         writer.set_cursor_position(prompt_pos, BUFFER_HEIGHT - 1);
-        
+
         Ok(ExitCode::Success)
     }
 
     fn read_command(&mut self) -> ShellResult {
         let mut command_complete = false;
         let initial_column = self.display.get_cursor_position();
-        
+
         while !command_complete {
             let mut keyboard_buffer = KEYBOARD_BUFFER.lock();
-            
+
             if let Some(&byte) = keyboard_buffer.last() {
                 serial_println!("Shell received byte: {} ({})", byte as char, byte);
-        
+
                 keyboard_buffer.pop();
                 drop(keyboard_buffer);
-                
+
                 match byte {
                     b'\n' => {
-                        
                         {
                             let mut writer = WRITER.lock();
                             writer.write_byte(b'\n');
                         }
-                        
-                        
+
                         let input = String::from_utf8_lossy(&self.input_buffer.buffer).into_owned();
                         let trimmed = input.trim();
-                        
-                        
+
                         self.input_buffer.clear();
                         self.display.clear_line();
-                        
+
                         if !trimmed.is_empty() {
                             let mut parser = Parser::new(trimmed);
                             match parser.parse() {
                                 Ok(tokens) => {
                                     if !tokens.is_empty() {
-                                        
                                         if self.history.len() >= 1000 {
                                             self.history.remove(0);
                                         }
                                         self.history.push(trimmed.to_string());
                                         self.history_position = self.history.len();
-                                        
-                                        
+
                                         let command = tokens[0].value.clone();
                                         let args = tokens[1..]
                                             .iter()
                                             .filter(|t| t.token_type == TokenType::Argument)
                                             .map(|t| t.value.clone())
                                             .collect::<Vec<_>>();
-                                        
+
                                         let result = self.execute_command(&command, &args);
 
                                         if result.is_ok() {
@@ -306,57 +303,54 @@ impl Shell {
                                 }
                             }
                         }
-                        
+
                         command_complete = true;
                         continue;
-                    },
-                                        
-                    
+                    }
+
                     27 => {
                         let mut keyboard_buffer = KEYBOARD_BUFFER.lock();
                         if keyboard_buffer.len() >= 2 {
                             let seq = (keyboard_buffer[0], keyboard_buffer[1]);
                             keyboard_buffer.drain(0..2);
                             drop(keyboard_buffer);
-                            
+
                             match seq {
-                                
                                 (91, 68) => {
                                     if self.input_buffer.move_cursor_left() {
                                         self.display.move_cursor(
-                                            initial_column + self.input_buffer.cursor_position
+                                            initial_column + self.input_buffer.cursor_position,
                                         );
                                     }
-                                },
-                                
+                                }
+
                                 (91, 67) => {
                                     if self.input_buffer.move_cursor_right() {
                                         self.display.move_cursor(
-                                            initial_column + self.input_buffer.cursor_position
+                                            initial_column + self.input_buffer.cursor_position,
                                         );
                                     }
-                                },
-                                
+                                }
+
                                 (91, 65) => {
                                     if self.history_position > 0 {
                                         self.history_position -= 1;
-                                        if let Some(previous_cmd) = self.history.get(self.history_position) {
-                                            
+                                        if let Some(previous_cmd) =
+                                            self.history.get(self.history_position)
+                                        {
                                             self.input_buffer.clear();
-                                            
-                                            
+
                                             self.input_buffer.buffer.extend(previous_cmd.bytes());
                                             self.input_buffer.cursor_position = previous_cmd.len();
-                                            
-                                            
+
                                             self.display.redraw_line(
                                                 &self.input_buffer.buffer,
-                                                self.input_buffer.cursor_position
+                                                self.input_buffer.cursor_position,
                                             );
                                         }
                                     }
-                                },
-                                
+                                }
+
                                 (91, 66) => {
                                     if self.history_position < self.history.len() {
                                         self.history_position += 1;
@@ -365,78 +359,68 @@ impl Shell {
                                         } else {
                                             &self.history[self.history_position]
                                         };
-                                        
-                                        
+
                                         self.input_buffer.clear();
-                                        
-                                        
+
                                         self.input_buffer.buffer.extend(cmd.bytes());
                                         self.input_buffer.cursor_position = cmd.len();
-                                        
-                                        
+
                                         self.display.redraw_line(
                                             &self.input_buffer.buffer,
-                                            self.input_buffer.cursor_position
+                                            self.input_buffer.cursor_position,
                                         );
                                     }
-                                },
+                                }
                                 _ => {}
                             }
                         } else {
                             drop(keyboard_buffer);
                         }
-                    },
-                    
-                    
+                    }
+
                     8 | 127 => {
                         if self.input_buffer.backspace() {
-                            
                             self.display.redraw_line(
                                 &self.input_buffer.buffer,
-                                self.input_buffer.cursor_position
+                                self.input_buffer.cursor_position,
                             );
                         }
-                    },
-                    
-                    
+                    }
+
                     32..=126 => {
-                        
-                        let available_space = BUFFER_WIDTH.saturating_sub(2) 
-                                                        .saturating_sub(initial_column);
-                                                        
+                        let available_space = BUFFER_WIDTH
+                            .saturating_sub(2)
+                            .saturating_sub(initial_column);
+
                         if self.input_buffer.buffer.len() < available_space {
-                            
                             if self.input_buffer.insert(byte) {
-                                
                                 self.display.redraw_line(
                                     &self.input_buffer.buffer,
-                                    self.input_buffer.cursor_position
+                                    self.input_buffer.cursor_position,
                                 );
-                                
-                                
-                                let new_cursor_pos = initial_column + self.input_buffer.cursor_position;
+
+                                let new_cursor_pos =
+                                    initial_column + self.input_buffer.cursor_position;
                                 if new_cursor_pos < BUFFER_WIDTH {
-                                    WRITER.lock().set_cursor_position(new_cursor_pos, BUFFER_HEIGHT - 1);
+                                    WRITER
+                                        .lock()
+                                        .set_cursor_position(new_cursor_pos, BUFFER_HEIGHT - 1);
                                 }
                             }
                         }
-                    },
-                    
-                    _ => {} 
+                    }
+
+                    _ => {}
                 }
 
-                self.display.redraw_line(
-                    &self.input_buffer.buffer,
-                    self.input_buffer.cursor_position
-                );
-
+                self.display
+                    .redraw_line(&self.input_buffer.buffer, self.input_buffer.cursor_position);
             } else {
-                
                 drop(keyboard_buffer);
                 x86_64::instructions::hlt();
             }
         }
-        
+
         Ok(ExitCode::Success)
     }
 

@@ -14,16 +14,15 @@
 * limitations under the License.
 */
 
-use core::mem::size_of;
-use alloc::vec::Vec;
-use x86_64::structures::paging::Size4KiB;
-use crate::serial_println;
-use x86_64::VirtAddr;
-use x86_64::structures::paging::{Page, PageTableFlags};
 use crate::memory::MemoryError;
 use crate::memory::MemoryManager;
-use x86_64::structures::paging::Mapper;
+use crate::serial_println;
+use core::mem::size_of;
 use x86_64::structures::paging::FrameAllocator;
+use x86_64::structures::paging::Mapper;
+use x86_64::structures::paging::Size4KiB;
+use x86_64::structures::paging::{Page, PageTableFlags};
+use x86_64::VirtAddr;
 
 #[repr(C)]
 pub struct ElfHeader {
@@ -63,21 +62,23 @@ const PF_R: u32 = 0x4;
 pub fn load_elf(data: &[u8], memory_manager: &mut MemoryManager) -> Result<VirtAddr, MemoryError> {
     serial_println!("Starting ELF loading");
     serial_println!("File size: {} bytes", data.len());
-    
+
     if data.len() < size_of::<ElfHeader>() {
         return Err(MemoryError::InvalidExecutable);
     }
 
     let header = unsafe { &*(data.as_ptr() as *const ElfHeader) };
-    
+
     if &header.e_ident[0..4] != b"\x7FELF" {
         return Err(MemoryError::InvalidExecutable);
     }
 
     serial_println!("Entry point: {:#x}", header.e_entry);
-    serial_println!("Program headers: {} at offset {:#x}", 
-        header.e_phnum, 
-        header.e_phoff);
+    serial_println!(
+        "Program headers: {} at offset {:#x}",
+        header.e_phnum,
+        header.e_phoff
+    );
 
     let ph_offset = header.e_phoff as usize;
     let ph_count = header.e_phnum as usize;
@@ -98,7 +99,8 @@ pub fn load_elf(data: &[u8], memory_manager: &mut MemoryManager) -> Result<VirtA
             serial_println!("  Physical Address: {:#x}", ph.p_paddr);
             serial_println!("  File size: {:#x}", ph.p_filesz);
             serial_println!("  Memory size: {:#x}", ph.p_memsz);
-            serial_println!("  Flags: {:#x} ({}{}{})", 
+            serial_println!(
+                "  Flags: {:#x} ({}{}{})",
                 ph.p_flags,
                 if ph.p_flags & PF_R != 0 { "R" } else { "-" },
                 if ph.p_flags & PF_W != 0 { "W" } else { "-" },
@@ -107,7 +109,8 @@ pub fn load_elf(data: &[u8], memory_manager: &mut MemoryManager) -> Result<VirtA
             serial_println!("  Alignment: {:#x}", ph.p_align);
 
             if ph.p_filesz > 0 {
-                let segment_data = &data[ph.p_offset as usize..][..core::cmp::min(16, ph.p_filesz as usize)];
+                let segment_data =
+                    &data[ph.p_offset as usize..][..core::cmp::min(16, ph.p_filesz as usize)];
                 serial_println!("  First bytes in file: {:02x?}", segment_data);
             }
 
@@ -115,7 +118,7 @@ pub fn load_elf(data: &[u8], memory_manager: &mut MemoryManager) -> Result<VirtA
             let end_page = Page::containing_address(VirtAddr::new(ph.p_vaddr + ph.p_memsz - 1));
 
             let mut flags = PageTableFlags::PRESENT | PageTableFlags::USER_ACCESSIBLE;
-            
+
             if ph.p_flags & PF_W != 0 {
                 flags |= PageTableFlags::WRITABLE;
             }
@@ -128,22 +131,27 @@ pub fn load_elf(data: &[u8], memory_manager: &mut MemoryManager) -> Result<VirtA
 
             for page in Page::range_inclusive(start_page, end_page) {
                 let page_addr = page.start_address().as_u64();
-                
+
                 if let Ok(_) = memory_manager.page_table.translate_page(page) {
                     serial_println!("Page {:#x} already mapped, skipping", page_addr);
                     continue;
                 }
-            
+
                 serial_println!("Mapping new page {:#x}", page_addr);
-                let frame = memory_manager.frame_allocator
+                let frame = memory_manager
+                    .frame_allocator
                     .allocate_frame()
                     .ok_or(MemoryError::FrameAllocationFailed)?;
-            
+
                 unsafe {
                     let temp_flags = flags | PageTableFlags::WRITABLE;
-                    serial_println!("Mapping page {:#x} to frame {:#x} with flags {:#x}", 
-                        page_addr, frame.start_address().as_u64(), temp_flags.bits());
-                    
+                    serial_println!(
+                        "Mapping page {:#x} to frame {:#x} with flags {:#x}",
+                        page_addr,
+                        frame.start_address().as_u64(),
+                        temp_flags.bits()
+                    );
+
                     memory_manager.map_page(page, frame, temp_flags)?;
 
                     let dest_ptr = page.start_address().as_mut_ptr::<u8>();
@@ -154,26 +162,35 @@ pub fn load_elf(data: &[u8], memory_manager: &mut MemoryManager) -> Result<VirtA
                         let file_offset = ph.p_offset + page_offset;
                         let copy_size = core::cmp::min(
                             Page::<Size4KiB>::SIZE as u64,
-                            ph.p_filesz - page_offset
+                            ph.p_filesz - page_offset,
                         ) as usize;
-                    
+
                         if file_offset as usize + copy_size <= data.len() {
                             serial_println!("Copying segment data:");
                             serial_println!("  From file offset: {:#x}", file_offset);
-                            serial_println!("  To virtual address: {:#x}", page.start_address().as_u64());
+                            serial_println!(
+                                "  To virtual address: {:#x}",
+                                page.start_address().as_u64()
+                            );
                             serial_println!("  Size: {:#x} bytes", copy_size);
-                            
+
                             let src_slice = &data[file_offset as usize..][..copy_size];
-                            serial_println!("  Source data: {:02x?}", &src_slice[..core::cmp::min(16, src_slice.len())]);
-                            
+                            serial_println!(
+                                "  Source data: {:02x?}",
+                                &src_slice[..core::cmp::min(16, src_slice.len())]
+                            );
+
                             core::ptr::copy_nonoverlapping(
                                 data.as_ptr().add(file_offset as usize),
                                 dest_ptr,
-                                copy_size
+                                copy_size,
                             );
 
                             let dest_slice = core::slice::from_raw_parts(dest_ptr, copy_size);
-                            serial_println!("  Copied data: {:02x?}", &dest_slice[..core::cmp::min(16, dest_slice.len())]);
+                            serial_println!(
+                                "  Copied data: {:02x?}",
+                                &dest_slice[..core::cmp::min(16, dest_slice.len())]
+                            );
                         }
                     }
 

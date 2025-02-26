@@ -14,27 +14,26 @@
 * limitations under the License.
 */
 
-use alloc::string::String;
-use alloc::vec::Vec;
-use crate::MEMORY_MANAGER;
+use super::commands::ls::{list_directory, parse_ls_flags};
+use super::ShellResult;
+use crate::alloc::string::ToString;
+use crate::fs::normalize_path;
+use crate::fs::validate_path;
+use crate::fs::FileSystem;
+use crate::fs::FsError;
+use crate::fs::FILESYSTEM;
+use crate::println;
+use crate::process::PROCESS_LIST;
 use crate::scheduler::SCHEDULER;
+use crate::serial_println;
+use crate::shell::format;
+use crate::shell::ExitCode;
+use crate::shell::ShellDisplay;
 use crate::shell::ShellError;
 use crate::Process;
-use crate::shell::ExitCode;
-use super::ShellResult;
-use crate::serial_println;
-use crate::println;
-use crate::fs::FileSystem;
-use crate::alloc::string::ToString;
-use crate::shell::ShellDisplay;
-use crate::fs::validate_path;
-use crate::shell::format;
-use super::commands::ls::{list_directory, parse_ls_flags};
-use crate::fs::FILESYSTEM;
-use crate::fs::normalize_path;
-use crate::print;
-use crate::fs::FsError;
-use crate::process::PROCESS_LIST;
+use crate::MEMORY_MANAGER;
+use alloc::string::String;
+use alloc::vec::Vec;
 
 pub struct CommandExecutor {
     builtins: Vec<(&'static str, fn(&[String]) -> ShellResult)>,
@@ -45,14 +44,14 @@ impl CommandExecutor {
         let mut executor = Self {
             builtins: Vec::new(),
         };
-        
+
         executor.register_builtin("exit", Self::cmd_exit);
         executor.register_builtin("clear", Self::cmd_clear);
         executor.register_builtin("help", Self::cmd_help);
         executor.register_builtin("ls", Self::cmd_ls);
         executor.register_builtin("cd", Self::cmd_cd);
         executor.register_builtin("pwd", Self::cmd_pwd);
-        
+
         executor
     }
 
@@ -79,26 +78,26 @@ impl CommandExecutor {
                                     return Err(ShellError::ExecutionFailed);
                                 }
                                 serial_println!("Successfully loaded program");
-                                
+
                                 process_id = process.id();
 
                                 let mut scheduler = SCHEDULER.lock();
                                 scheduler.add_process(process);
-                            },
+                            }
                             Err(_) => return Err(ShellError::ExecutionFailed),
                         }
                     } else {
-                        return Err(ShellError::ExecutionFailed)
+                        return Err(ShellError::ExecutionFailed);
                     }
                 }
 
                 if let Some(mut current) = PROCESS_LIST.lock().get_mut_by_id(process_id) {
                     current.switch_to_user_mode();
                 }
-                
+
                 Ok(ExitCode::Success)
-            },
-            Err(_) => Err(ShellError::ExecutionFailed)
+            }
+            Err(_) => Err(ShellError::ExecutionFailed),
         }
     }
 
@@ -124,7 +123,7 @@ impl CommandExecutor {
                     serial_println!("Found program file");
                     drop(fs);
                     self.execute_program(&program_path, args)
-                },
+                }
                 Err(_) => {
                     serial_println!("Program not found");
                     Err(ShellError::CommandNotFound)
@@ -132,12 +131,10 @@ impl CommandExecutor {
             }
         }
     }
-    
+
     fn cmd_exit(args: &[String]) -> ShellResult {
-        let code = args.get(0)
-            .and_then(|s| s.parse::<i32>().ok())
-            .unwrap_or(0);
-            
+        let code = args.get(0).and_then(|s| s.parse::<i32>().ok()).unwrap_or(0);
+
         Ok(ExitCode::from_i32(code))
     }
 
@@ -165,15 +162,15 @@ impl CommandExecutor {
 
     fn cmd_ls(args: &[String]) -> ShellResult {
         serial_println!("Executing ls with args: {:?}", args);
-        
+
         let (flags, mut paths) = parse_ls_flags(args);
 
         if paths.is_empty() {
             paths.push(String::from("."));
         }
-        
+
         serial_println!("Parsed paths: {:?}", paths);
-        
+
         for path in &paths {
             if paths.len() > 1 {
                 println!("{}:", path);
@@ -193,36 +190,35 @@ impl CommandExecutor {
     }
 
     fn cmd_cd(args: &[String]) -> ShellResult {
-        let path = args.get(0)
-            .map(String::as_str)
-            .unwrap_or("/");
-                
+        let path = args.get(0).map(String::as_str).unwrap_or("/");
+
         let process_list = PROCESS_LIST.lock();
-        let current_dir = process_list.current()
+        let current_dir = process_list
+            .current()
             .map(|p| p.current_dir.clone())
             .unwrap_or_else(|| String::from("/"));
-    
+
         serial_println!("CD: Current directory is {}", current_dir);
-        
+
         let target_path = if path.starts_with('/') {
             normalize_path(path)
         } else {
             normalize_path(&format!("{}/{}", current_dir, path))
         };
-    
+
         serial_println!("CD: Target path is {}", target_path);
-        
+
         drop(process_list);
-    
+
         let mut fs = FILESYSTEM.lock();
         match validate_path(&mut *fs, &target_path) {
             Ok(stats) => {
                 if !stats.is_directory {
                     return Err(ShellError::NotADirectory);
                 }
-                
+
                 drop(fs);
-                
+
                 let mut process_list = PROCESS_LIST.lock();
                 if let Some(current) = process_list.current_mut() {
                     current.current_dir = target_path;
@@ -230,21 +226,20 @@ impl CommandExecutor {
                 } else {
                     Err(ShellError::InternalError)
                 }
-            },
+            }
             Err(FsError::NotADirectory) => Err(ShellError::NotADirectory),
-            Err(FsError::NotFound) => {
-                Err(ShellError::PathNotFound)
-            },
+            Err(FsError::NotFound) => Err(ShellError::PathNotFound),
             Err(_) => Err(ShellError::InvalidPath),
         }
     }
 
     fn cmd_pwd(_args: &[String]) -> ShellResult {
         serial_println!("PWD command execution started");
-        
+
         let current_dir = {
             let process_list = PROCESS_LIST.lock();
-            process_list.current()
+            process_list
+                .current()
                 .map(|p| p.current_dir.clone())
                 .unwrap_or_else(|| String::from("/"))
         };

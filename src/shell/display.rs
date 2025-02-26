@@ -14,11 +14,11 @@
 * limitations under the License.
 */
 
-use alloc::string::String;
-use crate::vga_buffer::{WRITER, Color, ColorCode, BUFFER_WIDTH, BUFFER_HEIGHT};
-use core::fmt::Write;
-use crate::shell::Vec;
 use super::ShellError;
+use crate::shell::Vec;
+use crate::vga_buffer::{Color, ColorCode, BUFFER_HEIGHT, BUFFER_WIDTH, WRITER};
+use alloc::string::String;
+use core::fmt::Write;
 use x86_64::instructions::interrupts;
 
 pub struct ShellDisplay {
@@ -50,16 +50,16 @@ impl ShellDisplay {
         interrupts::without_interrupts(|| {
             let mut writer = WRITER.lock();
             let original_color = writer.color_code;
-            
+
             writer.color_code = self.prompt_color;
             writer.write_str(&self.prompt).unwrap();
             writer.color_code = original_color;
-            
+
             let current_pos = writer.column_position;
-            
+
             writer.enable_cursor();
             writer.set_cursor_position(current_pos, BUFFER_HEIGHT - 1);
-            
+
             current_pos
         })
     }
@@ -88,7 +88,7 @@ impl ShellDisplay {
 
             writer.column_position = 0;
             writer.set_cursor_position(0, BUFFER_HEIGHT - 1);
-            
+
             writer.color_code = original_color;
         });
     }
@@ -116,10 +116,10 @@ impl ShellDisplay {
             if writer.column_position > 0 {
                 writer.write_byte(b'\n');
             }
-    
+
             writer.color_code = self.error_color;
             writer.write_str("Error: ").unwrap();
-            
+
             let message = match error {
                 ShellError::CommandNotFound => "Command not found",
                 ShellError::InvalidArguments => "Invalid arguments",
@@ -135,7 +135,7 @@ impl ShellDisplay {
                 ShellError::NotADirectory => "Not a directory",
                 ShellError::InvalidExecutable => "Invalid executable format",
             };
-            
+
             writer.write_str(message).unwrap();
             writer.color_code = original_color;
             writer.write_byte(b'\n');
@@ -164,11 +164,11 @@ impl ShellDisplay {
                 if i == cursor_pos {
                     writer.color_code = ColorCode::new(Color::Black, Color::White);
                 }
-                
+
                 if writer.column_position < BUFFER_WIDTH {
                     writer.write_byte(byte);
                 }
-                
+
                 if i == cursor_pos {
                     writer.color_code = self.text_color;
                 }
@@ -179,7 +179,7 @@ impl ShellDisplay {
                 writer.column_position = final_cursor_pos;
                 writer.set_cursor_position(final_cursor_pos, BUFFER_HEIGHT - 1);
             }
-            
+
             writer.color_code = original_color;
             writer.enable_cursor();
         });

@@ -14,13 +14,13 @@
 * limitations under the License.
 */
 
+use crate::serial_println;
+use crate::vga_buffer::WRITER;
 use alloc::collections::VecDeque;
 use alloc::vec::Vec;
-use spin::Mutex;
-use lazy_static::lazy_static;
-use crate::vga_buffer::WRITER;
-use crate::serial_println;
 use core::sync::atomic::{AtomicBool, Ordering};
+use lazy_static::lazy_static;
+use spin::Mutex;
 
 const INPUT_BUF_SIZE: usize = 1024;
 const OUTPUT_BUF_SIZE: usize = 1024;
@@ -111,14 +111,24 @@ impl LineDiscipline {
         }
     }
 
-    pub fn process_input(&mut self, byte: u8, input_buf: &mut TtyBuffer, output_buf: &mut TtyBuffer) -> bool {
+    pub fn process_input(
+        &mut self,
+        byte: u8,
+        input_buf: &mut TtyBuffer,
+        output_buf: &mut TtyBuffer,
+    ) -> bool {
         match self.settings.mode {
             TtyMode::Canonical => self.handle_canonical_input(byte, input_buf, output_buf),
             TtyMode::Raw => self.handle_raw_input(byte, input_buf, output_buf),
         }
     }
 
-    fn handle_canonical_input(&mut self, byte: u8, input_buf: &mut TtyBuffer, output_buf: &mut TtyBuffer) -> bool {
+    fn handle_canonical_input(
+        &mut self,
+        byte: u8,
+        input_buf: &mut TtyBuffer,
+        output_buf: &mut TtyBuffer,
+    ) -> bool {
         match byte {
             b'\r' | b'\n' => {
                 if self.settings.echo {
@@ -137,9 +147,9 @@ impl LineDiscipline {
                     self.canonical_buf.pop();
                     if self.settings.echo {
                         WRITER.lock().write_byte(8);
-                        WRITER.lock().write_byte(b' '); 
+                        WRITER.lock().write_byte(b' ');
                         WRITER.lock().write_byte(8);
-                        
+
                         output_buf.push(8);
                         output_buf.push(b' ');
                         output_buf.push(8);
@@ -160,7 +170,12 @@ impl LineDiscipline {
         }
     }
 
-    fn handle_raw_input(&mut self, byte: u8, input_buf: &mut TtyBuffer, output_buf: &mut TtyBuffer) -> bool {
+    fn handle_raw_input(
+        &mut self,
+        byte: u8,
+        input_buf: &mut TtyBuffer,
+        output_buf: &mut TtyBuffer,
+    ) -> bool {
         if self.settings.echo {
             output_buf.push(byte);
         }
@@ -219,7 +234,11 @@ impl Tty {
 
     pub fn process_input(&mut self, byte: u8) {
         if !self.locked.load(Ordering::SeqCst) {
-            self.line_discipline.process_input(byte, &mut self.input_buffer, &mut self.output_buffer);
+            self.line_discipline.process_input(
+                byte,
+                &mut self.input_buffer,
+                &mut self.output_buffer,
+            );
         }
     }
 
@@ -264,7 +283,7 @@ pub fn read_tty(buf: &mut [u8]) -> usize {
             return 0;
         }
     }
-    
+
     tty.read(buf)
 }
 

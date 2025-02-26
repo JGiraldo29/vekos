@@ -14,12 +14,12 @@
 * limitations under the License.
 */
 
-use crate::{serial_println};
-use core::sync::atomic::{AtomicBool, Ordering};
-use core::alloc::Layout;
 use crate::buddy_allocator::LockedBuddyAllocator;
-use crate::MEMORY_MANAGER;
+use crate::serial_println;
 use crate::swap::DISK_IO;
+use crate::MEMORY_MANAGER;
+use core::alloc::Layout;
+use core::sync::atomic::{AtomicBool, Ordering};
 use x86_64::{
     structures::paging::{
         mapper::MapToError, FrameAllocator, Mapper, Page, PageTableFlags, Size4KiB,
@@ -37,39 +37,39 @@ pub static HEAP_INITIALIZED: AtomicBool = AtomicBool::new(false);
 pub const HEAP_START: usize = 0x_4444_4444_0000;
 pub const HEAP_SIZE: usize = 4 * 1024 * 1024;
 
-
 #[alloc_error_handler]
 fn alloc_error_handler(layout: Layout) -> ! {
     use core::sync::atomic::{AtomicBool, Ordering};
     static IN_OOM_HANDLER: AtomicBool = AtomicBool::new(false);
-    
+
     if IN_OOM_HANDLER.swap(true, Ordering::SeqCst) {
         serial_println!("CRITICAL: Recursive OOM detected, halting system");
         loop {}
     }
 
     serial_println!("CRITICAL: Memory allocation failed: {:?}", layout);
-    
-    
+
     {
         let mut mm_lock = MEMORY_MANAGER.lock();
         if let Some(mm) = mm_lock.as_mut() {
             if mm.handle_memory_pressure() {
                 if let Ok(()) = DISK_IO.lock().sync() {
                     IN_OOM_HANDLER.store(false, Ordering::SeqCst);
-                    
+
                     unsafe {
                         let ptr = alloc::alloc::alloc(layout);
                         if !ptr.is_null() {
-                            serial_println!("OOM: Memory reclaimed successfully, allocation retry succeeded");
-                            loop {} 
+                            serial_println!(
+                                "OOM: Memory reclaimed successfully, allocation retry succeeded"
+                            );
+                            loop {}
                         }
                     }
                 }
             }
         }
     }
-    
+
     {
         let mm_lock = MEMORY_MANAGER.lock();
         if let Some(mm) = mm_lock.as_ref() {
@@ -95,22 +95,22 @@ pub fn init_heap(
     };
 
     for page in page_range {
-        
         if mapper.translate_page(page).is_err() {
             let frame = frame_allocator
                 .allocate_frame()
                 .ok_or(MapToError::FrameAllocationFailed)?;
-                
+
             let flags = PageTableFlags::PRESENT | PageTableFlags::WRITABLE;
             unsafe {
-                mapper.map_to(page, frame, flags, frame_allocator)?
-                    .flush();
+                mapper.map_to(page, frame, flags, frame_allocator)?.flush();
             }
         }
     }
-    
+
     unsafe {
-        ALLOCATOR.lock().init(VirtAddr::new(HEAP_START as u64), HEAP_SIZE)
+        ALLOCATOR
+            .lock()
+            .init(VirtAddr::new(HEAP_START as u64), HEAP_SIZE)
             .expect("Heap initialization failed");
     }
 

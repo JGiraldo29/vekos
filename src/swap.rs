@@ -14,32 +14,29 @@
 * limitations under the License.
 */
 
-use alloc::vec::Vec;
-use alloc::vec;
-use crate::OperationProof;
-use crate::VerificationError;
-use crate::Ordering;
-use crate::Hash;
-use core::sync::atomic::AtomicU64;
 use crate::format;
-use crate::VirtAddr;
-use crate::tsc;
-use crate::Verifiable;
-use crate::hash::hash_memory;
-use crate::memory::SWAPPED_PAGES;
 use crate::memory::SwapPageInfo;
-use x86_64::structures::paging::FrameAllocator;
-use x86_64::structures::paging::FrameDeallocator;
+use crate::memory::SWAPPED_PAGES;
+use crate::tsc;
+use crate::Hash;
+use crate::OperationProof;
+use crate::Ordering;
+use crate::Verifiable;
+use crate::VerificationError;
+use crate::VirtAddr;
+use crate::{
+    fs::{FileSystem, FILESYSTEM},
+    hash,
+    memory::{MemoryError, MemoryManager},
+};
+use alloc::vec;
+use alloc::vec::Vec;
+use core::sync::atomic::AtomicU64;
 use lazy_static::lazy_static;
 use spin::Mutex;
-use x86_64::{
-    structures::paging::{Page, PageTableFlags},
-};
-use crate::{
-    memory::{MemoryError, MemoryManager},
-    fs::{FILESYSTEM, FileSystem},
-    hash,
-};
+use x86_64::structures::paging::FrameAllocator;
+use x86_64::structures::paging::FrameDeallocator;
+use x86_64::structures::paging::{Page, PageTableFlags};
 
 const PAGE_SIZE: usize = 4096;
 const MAX_SWAP_PAGES: usize = 1024;
@@ -89,30 +86,24 @@ impl SwapManager {
         flags: PageTableFlags,
         memory_manager: &mut MemoryManager,
     ) -> Result<usize, MemoryError> {
-        let slot = self.free_slots.pop()
-            .ok_or(MemoryError::NoSwapSpace)?;
-        
+        let slot = self.free_slots.pop().ok_or(MemoryError::NoSwapSpace)?;
+
         let offset = slot * PAGE_SIZE;
         let virt_addr = page.start_address();
         let mut swapped_pages = SWAPPED_PAGES.lock();
-        swapped_pages.insert(virt_addr, SwapPageInfo {
-            swap_slot: slot,
-            flags,
-            last_access: tsc::read_tsc(),
-            reference_count: 1,
-        });
-
-        let page_data = unsafe {
-            core::slice::from_raw_parts(
-                virt_addr.as_ptr::<u8>(),
-                PAGE_SIZE
-            )
-        };
-
-        let page_hash = hash::hash_memory(
+        swapped_pages.insert(
             virt_addr,
-            PAGE_SIZE
+            SwapPageInfo {
+                swap_slot: slot,
+                flags,
+                last_access: tsc::read_tsc(),
+                reference_count: 1,
+            },
         );
+
+        let page_data = unsafe { core::slice::from_raw_parts(virt_addr.as_ptr::<u8>(), PAGE_SIZE) };
+
+        let page_hash = hash::hash_memory(virt_addr, PAGE_SIZE);
 
         let disk_io = DISK_IO.lock();
         disk_io.write_page(slot as u64, page_data)?;
@@ -122,7 +113,7 @@ impl SwapManager {
 
         let mut hash_bytes = [0u8; 32];
         hash_bytes[0..8].copy_from_slice(&page_hash.0.to_ne_bytes());
-        
+
         self.used_slots[slot] = Some(SwapEntry {
             offset,
             page,
@@ -142,14 +133,16 @@ impl SwapManager {
         slot: usize,
         memory_manager: &mut MemoryManager,
     ) -> Result<(), MemoryError> {
-        let entry = self.used_slots[slot].take()
+        let entry = self.used_slots[slot]
+            .take()
             .ok_or(MemoryError::InvalidSwapSlot)?;
 
         let disk_io = DISK_IO.lock();
         let mut page_data = vec![0u8; PAGE_SIZE];
         disk_io.read_page(slot as u64, &mut page_data)?;
-        
-        let frame = memory_manager.frame_allocator
+
+        let frame = memory_manager
+            .frame_allocator
             .allocate_frame()
             .ok_or(MemoryError::FrameAllocationFailed)?;
 
@@ -159,16 +152,13 @@ impl SwapManager {
             core::ptr::copy_nonoverlapping(
                 page_data.as_ptr(),
                 entry.page.start_address().as_mut_ptr::<u8>(),
-                PAGE_SIZE
+                PAGE_SIZE,
             );
 
-            let new_hash = hash::hash_memory(
-                entry.page.start_address(),
-                PAGE_SIZE
-            );
+            let new_hash = hash::hash_memory(entry.page.start_address(), PAGE_SIZE);
             let mut verify_bytes = [0u8; 32];
             verify_bytes[0..8].copy_from_slice(&new_hash.0.to_ne_bytes());
-            
+
             if verify_bytes != entry.hash {
                 memory_manager.unmap_page(entry.page)?;
                 memory_manager.frame_allocator.deallocate_frame(frame);
@@ -177,7 +167,7 @@ impl SwapManager {
         }
 
         self.free_slots.push(slot);
-        
+
         Ok(())
     }
 }
@@ -201,7 +191,7 @@ impl DiskIOManager {
                 buffer.copy_from_slice(&data[..4096]);
                 Ok(())
             }
-            Err(_) => Err("Failed to read swap page")
+            Err(_) => Err("Failed to read swap page"),
         }
     }
 
@@ -222,22 +212,23 @@ impl DiskIOManager {
 }
 
 impl Verifiable for DiskIOManager {
-    fn generate_proof(&self, operation: crate::verification::Operation) -> Result<OperationProof, VerificationError> {
+    fn generate_proof(
+        &self,
+        operation: crate::verification::Operation,
+    ) -> Result<OperationProof, VerificationError> {
         let prev_state = self.state_hash.load(Ordering::SeqCst);
         let op_hash = Hash(self.current_operation.load(Ordering::SeqCst));
-        
+
         Ok(OperationProof {
             op_id: crate::tsc::read_tsc(),
             prev_state: Hash(prev_state),
             new_state: Hash(prev_state ^ op_hash.0),
-            data: crate::verification::ProofData::Memory(
-                crate::verification::MemoryProof {
-                    operation: crate::verification::MemoryOpType::Modify,
-                    address: VirtAddr::new(0),
-                    size: 0,
-                    frame_hash: op_hash,
-                }
-            ),
+            data: crate::verification::ProofData::Memory(crate::verification::MemoryProof {
+                operation: crate::verification::MemoryOpType::Modify,
+                address: VirtAddr::new(0),
+                size: 0,
+                frame_hash: op_hash,
+            }),
             signature: [0; 64],
         })
     }

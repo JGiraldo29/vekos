@@ -14,12 +14,12 @@
 * limitations under the License.
 */
 
+use crate::serial_println;
+use alloc::vec::Vec;
 use core::sync::atomic::{AtomicU64, Ordering};
+use lazy_static::lazy_static;
 use spin::Mutex;
 use x86_64::instructions::port::Port;
-use crate::serial_println;
-use lazy_static::lazy_static;
-use alloc::vec::Vec;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Timestamp {
@@ -43,16 +43,16 @@ impl Timestamp {
 
         let secs = ticks.checked_div(TICKS_PER_SECOND).unwrap_or(0);
         serial_println!("DEBUG: Calculated seconds: {}", secs);
-        
+
         let nanos = ticks
             .checked_rem(TICKS_PER_SECOND)
             .and_then(|rem| rem.checked_mul(1_000_000_000))
             .and_then(|product| product.checked_div(TICKS_PER_SECOND))
             .map(|result| result as u32)
             .unwrap_or(0);
-            
+
         serial_println!("DEBUG: Calculated nanoseconds: {}", nanos);
-        
+
         let timestamp = Self { secs, nanos };
         serial_println!("DEBUG: Timestamp created successfully");
         timestamp
@@ -128,23 +128,23 @@ impl Cmos {
 
     pub fn read_time(&mut self) -> Timestamp {
         while self.read_register(0x0A) & 0x80 != 0 {}
-        
+
         let registers = [
-            self.read_register(0x00),  
-            self.read_register(0x02),  
-            self.read_register(0x04),  
-            self.read_register(0x07),  
-            self.read_register(0x08),  
-            self.read_register(0x09),  
+            self.read_register(0x00),
+            self.read_register(0x02),
+            self.read_register(0x04),
+            self.read_register(0x07),
+            self.read_register(0x08),
+            self.read_register(0x09),
         ];
 
-        let values: Vec<u8> = registers.iter()
+        let values: Vec<u8> = registers
+            .iter()
             .map(|&reg| self.bcd_to_binary(reg))
             .collect();
 
         self.date_to_timestamp(
-            values[5], values[4], values[3],
-            values[2], values[1], values[0]
+            values[5], values[4], values[3], values[2], values[1], values[0],
         )
     }
 
@@ -152,17 +152,23 @@ impl Cmos {
         (bcd & 0xF) + ((bcd >> 4) * 10)
     }
 
-    fn date_to_timestamp(&self, year: u8, month: u8, day: u8, hour: u8, minute: u8, second: u8) -> Timestamp {
-        
+    fn date_to_timestamp(
+        &self,
+        year: u8,
+        month: u8,
+        day: u8,
+        hour: u8,
+        minute: u8,
+        second: u8,
+    ) -> Timestamp {
         let years_since_1970 = 2000u64 + year as u64 - 1970;
         let days = years_since_1970 * 365 + years_since_1970 / 4 + day as u64 - 1;
-        
-        
+
         let month_days = [0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334];
         let days = days + month_days[month as usize - 1] as u64;
 
         let secs = days * 86400 + hour as u64 * 3600 + minute as u64 * 60 + second as u64;
-        
+
         Timestamp::new(secs, 0)
     }
 }
@@ -187,6 +193,6 @@ pub fn init() {
 
         serial_println!("Time system base initialization complete");
     }
-    
+
     serial_println!("Time system initialization complete");
 }

@@ -14,7 +14,7 @@
 * limitations under the License.
 */
 
-use crate::vga_buffer::{WRITER, Color, ColorCode};
+use crate::vga_buffer::{Color, ColorCode, WRITER};
 use core::fmt::Write;
 
 pub struct BootSplash;
@@ -23,16 +23,22 @@ impl BootSplash {
     pub fn show_splash() {
         let mut writer = WRITER.lock();
         let original_color = writer.color_code;
-        
+
         writer.clear_screen();
 
         writer.color_code = ColorCode::new(Color::White, Color::Black);
-        writer.write_str("\n                 Verified Experimental Kernel Operating System\n").unwrap();
-        writer.write_str("                            Version 0.0.1 - alpha\n\n").unwrap();
+        writer
+            .write_str("\n                 Verified Experimental Kernel Operating System\n")
+            .unwrap();
+        writer
+            .write_str("                            Version 0.0.1 - alpha\n\n")
+            .unwrap();
 
         writer.color_code = ColorCode::new(Color::LightGray, Color::Black);
-        writer.write_str("                      Developed by Juan Miguel Giraldo\n\n").unwrap();
-        
+        writer
+            .write_str("                      Developed by Juan Miguel Giraldo\n\n")
+            .unwrap();
+
         writer.color_code = original_color;
     }
 
@@ -53,9 +59,9 @@ impl BootSplash {
             BootMessageType::Warning => "[!]",
             BootMessageType::Error => "[x]",
         };
-        
+
         writer.write_str(indicator).unwrap();
-        
+
         writer.color_code = ColorCode::new(Color::White, Color::Black);
         writer.write_str(" ").unwrap();
         writer.write_str(msg).unwrap();
