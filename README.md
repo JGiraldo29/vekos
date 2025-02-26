@@ -4,7 +4,8 @@
 ![Status](https://img.shields.io/badge/status-experimental-orange)
 ![Language](https://img.shields.io/badge/language-Rust-red)
 
-VEKOS is an experimental operating system written in Rust that focuses on verification and security at its core. This is the first alpha release (v0.0.1) that demonstrates the basic architecture and key features of the system.
+VEKOS is an experimental operating system written in Rust that focuses on verification and security at its core. This is
+the first alpha release (v0.0.1) that demonstrates the basic architecture and key features of the system.
 
 **Watch the OS showcase by clicking on the thumbnail**
 
@@ -22,39 +23,39 @@ VEKOS is an experimental operating system written in Rust that focuses on verifi
 ## Current Functionality
 
 - **Memory Management**
-  - Buddy allocation system
-  - Page table management
-  - Memory zones (DMA, Normal, HighMem)
-  - Copy-on-Write support
-  - Memory pressure handling
+    - Buddy allocation system
+    - Page table management
+    - Memory zones (DMA, Normal, HighMem)
+    - Copy-on-Write support
+    - Memory pressure handling
 
 - **Filesystem**
-  - Basic filesystem operations (create, read, write, delete)
-  - Directory support
-  - Verification using Merkle trees
-  - Buffer cache system
-  - Inode management
+    - Basic filesystem operations (create, read, write, delete)
+    - Directory support
+    - Verification using Merkle trees
+    - Buffer cache system
+    - Inode management
 
 - **Process Management**
-  - Basic process creation and management
-  - Simple scheduler
-  - Signal handling
-  - Process groups and sessions
+    - Basic process creation and management
+    - Simple scheduler
+    - Signal handling
+    - Process groups and sessions
 
 - **Program Execution**
-  - Basic program execution using SYSCALL/SYSRET.
+    - Basic program execution using SYSCALL/SYSRET.
 
 - **Shell**
-  - Command history
-  - Line editing
-  - Basic built-in commands (cd, ls, pwd, help, clear)
-  - Command parsing with quote handling
+    - Command history
+    - Line editing
+    - Basic built-in commands (cd, ls, pwd, help, clear)
+    - Command parsing with quote handling
 
 - **Security Features**
-  - Operation verification through cryptographic proofs
-  - State transition validation
-  - Memory isolation
-  - Privilege levels
+    - Operation verification through cryptographic proofs
+    - State transition validation
+    - Memory isolation
+    - Privilege levels
 
 ## Building
 
@@ -87,25 +88,25 @@ cargo run
 VEKOS is in its early stages and welcomes contributions. Here are some areas where you can help:
 
 1. **Core Features**
-   - Expanding filesystem capabilities
-   - Improving process scheduling
-   - Adding device drivers
-   - Enhancing memory management
+    - Expanding filesystem capabilities
+    - Improving process scheduling
+    - Adding device drivers
+    - Enhancing memory management
 
 2. **Documentation**
-   - Code documentation
-   - Architecture documentation
-   - User guides
+    - Code documentation
+    - Architecture documentation
+    - User guides
 
 3. **Testing**
-   - Unit tests
-   - Integration tests
-   - Performance benchmarks
+    - Unit tests
+    - Integration tests
+    - Performance benchmarks
 
 4. **Bug Fixes**
-   - Report issues
-   - Submit pull requests
-   - Help with code review
+    - Report issues
+    - Submit pull requests
+    - Help with code review
 
 ### Contributing Guidelines
 
@@ -150,4 +151,6 @@ jgiraldonocua@gmail.com
 
 ---
 
-**Note**: VEKOS is currently in alpha stage (0.0.1). While it demonstrates core functionality, it should not be used in production environments. This is an experimental system focused on exploring verification techniques in operating system design.
+**Note**: VEKOS is currently in alpha stage (0.0.1). While it demonstrates core functionality, it should not be used in
+production environments. This is an experimental system focused on exploring verification techniques in operating system
+design.

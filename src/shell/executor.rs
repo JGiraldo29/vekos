@@ -22,7 +22,6 @@ use crate::fs::validate_path;
 use crate::fs::FileSystem;
 use crate::fs::FsError;
 use crate::fs::FILESYSTEM;
-use crate::print;
 use crate::println;
 use crate::process::PROCESS_LIST;
 use crate::scheduler::SCHEDULER;

@@ -165,19 +165,19 @@ impl CryptoVerifier {
 
             let mut result: u64;
             core::arch::asm!(
-                "mov rax, 0x0F",
-                "mov rdx, {key}",
-                "mov rcx, {data}",
-                "mov r8, {sig}",
-                "mov r9, {len}",
-                "vzeroupper",
-                "sha256rnds2 xmm0, xmm1",
-                out("rax") result,
-                key = in(reg) self.verification_key.as_ptr(),
-                data = in(reg) data.as_ptr(),
-                sig = in(reg) signature.as_ptr(),
-                len = in(reg) data.len(),
-                options(nostack, preserves_flags)
+            "mov rax, 0x0F",
+            "mov rdx, {key}",
+            "mov rcx, {data}",
+            "mov r8, {sig}",
+            "mov r9, {len}",
+            "vzeroupper",
+            "sha256rnds2 xmm0, xmm1",
+            out("rax") result,
+            key = in(reg) self.verification_key.as_ptr(),
+            data = in(reg) data.as_ptr(),
+            sig = in(reg) signature.as_ptr(),
+            len = in(reg) data.len(),
+            options(nostack, preserves_flags)
             );
 
             Some(result == 1)

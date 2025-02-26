@@ -15,7 +15,6 @@
 */
 
 use crate::format;
-use crate::hash::hash_memory;
 use crate::memory::SwapPageInfo;
 use crate::memory::SWAPPED_PAGES;
 use crate::tsc;

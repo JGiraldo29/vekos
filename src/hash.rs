@@ -53,18 +53,18 @@ fn try_hardware_hash(addr: VirtAddr, size: usize) -> Option<Hash> {
             let ptr = addr.as_ptr::<u8>();
 
             core::arch::asm!(
-                "movdqu xmm0, [{0}]",
-                "sha256msg1 xmm0, xmm1",
-                "sha256msg2 xmm0, xmm2",
-                "sha256rnds2 xmm0, xmm3",
-                in(reg) ptr,
-                options(nostack, preserves_flags)
+            "movdqu xmm0, [{0}]",
+            "sha256msg1 xmm0, xmm1",
+            "sha256msg2 xmm0, xmm2",
+            "sha256rnds2 xmm0, xmm3",
+            in(reg) ptr,
+            options(nostack, preserves_flags)
             );
 
             core::arch::asm!(
-                "movq {0}, xmm0",
-                out(reg) hash,
-                options(nostack, preserves_flags)
+            "movq {0}, xmm0",
+            out(reg) hash,
+            options(nostack, preserves_flags)
             );
 
             Some(Hash(hash))

@@ -14,9 +14,8 @@
 * limitations under the License.
 */
 
-use crate::boot_verification::ComponentType::GDT;
-use crate::elf;
 use crate::memory::PageFault;
+use crate::println;
 use crate::process::PROCESS_LIST;
 use crate::process::USER_STACK_SIZE;
 use crate::scheduler::SCHEDULER;
@@ -24,17 +23,12 @@ use crate::serial_println;
 use crate::time::SYSTEM_TIME;
 use crate::tty;
 use crate::MEMORY_MANAGER;
-use crate::{print, println};
-use core::arch::asm;
 use lazy_static::lazy_static;
 use pc_keyboard::{layouts, HandleControl, KeyCode, Keyboard, ScancodeSet1};
 use pic8259::ChainedPics;
 use spin;
 use x86_64::instructions::port::Port;
 use x86_64::structures::idt::{InterruptDescriptorTable, InterruptStackFrame, PageFaultErrorCode};
-use x86_64::structures::paging::FrameAllocator;
-use x86_64::PrivilegeLevel;
-use x86_64::VirtAddr;
 
 pub const PIC_1_OFFSET: u8 = 32;
 pub const PIC_2_OFFSET: u8 = PIC_1_OFFSET + 8;

@@ -1,0 +1,204 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="AutoImportSettings">
+    <option name="autoReloadType" value="ALL" />
+  </component>
+  <component name="CargoProjects">
+    <cargoProject FILE="$PROJECT_DIR$/Cargo.toml" />
+  </component>
+  <component name="ChangeListManager">
+    <list default="true" id="0822aa5c-2a78-48c7-9ac4-e1af1d5e7cdc" name="Changes" comment="init">
+      <change beforePath="$PROJECT_DIR$/vekos/.cargo/config.toml" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/vekos/.gitignore" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/vekos/.idea/inspectionProfiles/Project_Default.xml" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/vekos/.idea/modules.xml" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/vekos/.idea/vcs.xml" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/vekos/.idea/vekos.iml" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/vekos/.idea/workspace.xml" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/vekos/Cargo.lock" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/vekos/Cargo.toml" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/vekos/LICENSE" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/vekos/README.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/vekos/assets/font8x16.bin" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/vekos/programs/VETests" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/vekos/rust-toolchain" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/vekos/src/allocator.rs" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/vekos/src/block_cache.rs" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/vekos/src/boot_splash.rs" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/vekos/src/boot_verification.rs" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/vekos/src/buddy_allocator.rs" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/vekos/src/buffer_manager.rs" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/vekos/src/crypto.rs" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/vekos/src/elf.rs" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/vekos/src/font.rs" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/vekos/src/framebuffer.rs" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/vekos/src/fs.rs" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/vekos/src/gdt.rs" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/vekos/src/graphics_hal.rs" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/vekos/src/hash.rs" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/vekos/src/hash_chain.rs" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/vekos/src/inode_cache.rs" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/vekos/src/interrupts.rs" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/vekos/src/main.rs" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/vekos/src/memory.rs" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/vekos/src/merkle_tree.rs" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/vekos/src/operation_proofs.rs" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/vekos/src/page_table.rs" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/vekos/src/page_table_cache.rs" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/vekos/src/priority.rs" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/vekos/src/process.rs" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/vekos/src/proof_storage.rs" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/vekos/src/scheduler.rs" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/vekos/src/serial.rs" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/vekos/src/shell/commands/ls.rs" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/vekos/src/shell/commands/mod.rs" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/vekos/src/shell/display.rs" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/vekos/src/shell/executor.rs" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/vekos/src/shell/mod.rs" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/vekos/src/shell/parser.rs" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/vekos/src/signals.rs" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/vekos/src/swap.rs" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/vekos/src/syscall.rs" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/vekos/src/time.rs" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/vekos/src/tsc.rs" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/vekos/src/tty.rs" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/vekos/src/vbe.rs" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/vekos/src/verification.rs" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/vekos/src/vga_buffer.rs" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/vekos/src/vkfs.rs" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/vekos/x86_64-vekos.json" beforeDir="false" />
+    </list>
+    <option name="SHOW_DIALOG" value="false" />
+    <option name="HIGHLIGHT_CONFLICTS" value="true" />
+    <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
+    <option name="LAST_RESOLUTION" value="IGNORE" />
+  </component>
+  <component name="ExecutionTargetManager" SELECTED_TARGET="RsBuildProfile:dev" />
+  <component name="Git.Settings">
+    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
+  </component>
+  <component name="GitHubPullRequestSearchHistory"><![CDATA[{
+  "lastFilter": {
+    "state": "OPEN",
+    "assignee": "KdntNinja"
+  }
+}]]></component>
+  <component name="GithubPullRequestsUISettings"><![CDATA[{
+  "selectedUrlAndAccountId": {
+    "url": "https://github.com/KdntNinja/vekos.git",
+    "accountId": "f8641087-6f1a-407b-8f0b-f3c7d94cc0d8"
+  }
+}]]></component>
+  <component name="MacroExpansionManager">
+    <option name="directoryName" value="ibjFYUQj" />
+  </component>
+  <component name="ProjectColorInfo"><![CDATA[{
+  "associatedIndex": 4
+}]]></component>
+  <component name="ProjectId" id="2tajNgxqIfjQrULU9oFttXNmq1Z" />
+  <component name="ProjectLevelVcsManager" settingsEditedManually="true" />
+  <component name="ProjectViewState">
+    <option name="hideEmptyMiddlePackages" value="true" />
+    <option name="showLibraryContents" value="true" />
+  </component>
+  <component name="PropertiesComponent"><![CDATA[{
+  "keyToString": {
+    "Cargo.Run vekos.executor": "Run",
+    "RunOnceActivity.ShowReadmeOnStart": "true",
+    "RunOnceActivity.git.unshallow": "true",
+    "RunOnceActivity.rust.reset.selective.auto.import": "true",
+    "git-widget-placeholder": "main",
+    "last_opened_file_path": "/home/kaiden/RustroverProjects/vekos",
+    "node.js.detected.package.eslint": "true",
+    "node.js.detected.package.tslint": "true",
+    "node.js.selected.package.eslint": "(autodetect)",
+    "node.js.selected.package.tslint": "(autodetect)",
+    "nodejs_package_manager_path": "npm",
+    "org.rust.cargo.project.model.PROJECT_DISCOVERY": "true",
+    "org.rust.first.attach.projects": "true",
+    "settings.editor.selected.configurable": "project.propVCSSupport.DirectoryMappings",
+    "vue.rearranger.settings.migration": "true"
+  }
+}]]></component>
+  <component name="RsExternalLinterProjectSettings">
+    <option name="runOnTheFly" value="true" />
+  </component>
+  <component name="RunManager" selected="Cargo.Run vekos">
+    <configuration name="Run vekos" type="CargoCommandRunConfiguration" factoryName="Cargo Command">
+      <option name="buildProfileId" value="dev" />
+      <option name="command" value="run --package vekos --bin vekos" />
+      <option name="workingDirectory" value="file://$PROJECT_DIR$" />
+      <envs />
+      <option name="emulateTerminal" value="true" />
+      <option name="channel" value="DEFAULT" />
+      <option name="requiredFeatures" value="true" />
+      <option name="allFeatures" value="false" />
+      <option name="withSudo" value="false" />
+      <option name="buildTarget" value="REMOTE" />
+      <option name="backtrace" value="SHORT" />
+      <option name="isRedirectInput" value="false" />
+      <option name="redirectInputPath" value="" />
+      <method v="2">
+        <option name="CARGO.BUILD_TASK_PROVIDER" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="Test vekos" type="CargoCommandRunConfiguration" factoryName="Cargo Command">
+      <option name="command" value="test --workspace" />
+      <option name="workingDirectory" value="file://$PROJECT_DIR$" />
+      <envs />
+      <option name="emulateTerminal" value="true" />
+      <option name="channel" value="DEFAULT" />
+      <option name="requiredFeatures" value="true" />
+      <option name="allFeatures" value="false" />
+      <option name="withSudo" value="false" />
+      <option name="buildTarget" value="REMOTE" />
+      <option name="backtrace" value="SHORT" />
+      <option name="isRedirectInput" value="false" />
+      <option name="redirectInputPath" value="" />
+      <method v="2">
+        <option name="CARGO.BUILD_TASK_PROVIDER" enabled="true" />
+      </method>
+    </configuration>
+  </component>
+  <component name="RustProjectSettings">
+    <option name="toolchainHomeDirectory" value="$USER_HOME$/.cargo/bin" />
+  </component>
+  <component name="SpellCheckerSettings" RuntimeDictionaries="0" Folders="0" CustomDictionaries="0" DefaultDictionary="application-level" UseSingleDictionary="true" transferred="true" />
+  <component name="SvnConfiguration">
+    <configuration>$USER_HOME$/.subversion</configuration>
+  </component>
+  <component name="TaskManager">
+    <task active="true" id="Default" summary="Default task">
+      <changelist id="0822aa5c-2a78-48c7-9ac4-e1af1d5e7cdc" name="Changes" comment="" />
+      <created>1740597041738</created>
+      <option name="number" value="Default" />
+      <option name="presentableId" value="Default" />
+      <updated>1740597041738</updated>
+      <workItem from="1740597043144" duration="393000" />
+    </task>
+    <task id="LOCAL-00001" summary="init">
+      <option name="closed" value="true" />
+      <created>1740597405599</created>
+      <option name="number" value="00001" />
+      <option name="presentableId" value="LOCAL-00001" />
+      <option name="project" value="LOCAL" />
+      <updated>1740597405599</updated>
+    </task>
+    <option name="localTasksCounter" value="2" />
+    <servers />
+  </component>
+  <component name="TypeScriptGeneratedFilesManager">
+    <option name="version" value="3" />
+  </component>
+  <component name="VcsManagerConfiguration">
+    <ignored-roots>
+      <path value="$PROJECT_DIR$/.." />
+    </ignored-roots>
+    <MESSAGE value="init" />
+    <option name="LAST_COMMIT_MESSAGE" value="init" />
+  </component>
+  <component name="XSLT-Support.FileAssociations.UIState">
+    <expand />
+    <select />
+  </component>
+</project>

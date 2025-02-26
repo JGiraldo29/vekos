@@ -14,8 +14,8 @@
 * limitations under the License.
 */
 
+use crate::println;
 use crate::process::{Process, ProcessId, ProcessState, PROCESS_LIST};
-use crate::{print, println};
 use x86_64::{registers::control::Cr3, VirtAddr};
 
 use crate::priority::PriorityScheduler;
@@ -237,9 +237,9 @@ impl Scheduler {
 
     unsafe fn switch_stack(new_stack: VirtAddr) {
         asm!(
-            "mov rsp, {}",
-            in(reg) new_stack.as_u64(),
-            options(nomem, nostack)
+        "mov rsp, {}",
+        in(reg) new_stack.as_u64(),
+        options(nomem, nostack)
         );
     }
 

@@ -109,22 +109,22 @@ pub extern "C" fn dispatch_syscall() {
 
     unsafe {
         asm!(
-            "mov {0}, rax",
-            "mov {1}, rdi",
-            "mov {2}, rsi",
-            "mov {3}, rdx",
-            "mov {4}, r8",
-            "mov {5}, r9",
-            "mov {6}, r10",
-            "mov {7}, r11",
-            out(reg) syscall_nr,
-            out(reg) fd,
-            out(reg) buf,
-            out(reg) count,
-            out(reg) r8,
-            out(reg) r9,
-            out(reg) r10,
-            out(reg) r11,
+        "mov {0}, rax",
+        "mov {1}, rdi",
+        "mov {2}, rsi",
+        "mov {3}, rdx",
+        "mov {4}, r8",
+        "mov {5}, r9",
+        "mov {6}, r10",
+        "mov {7}, r11",
+        out(reg) syscall_nr,
+        out(reg) fd,
+        out(reg) buf,
+        out(reg) count,
+        out(reg) r8,
+        out(reg) r9,
+        out(reg) r10,
+        out(reg) r11,
         );
 
         serial_println!("Syscall registers:");

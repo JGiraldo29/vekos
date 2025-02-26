@@ -182,34 +182,34 @@ impl ProcessContext {
         self.regs.save();
 
         core::arch::asm!(
-            "fxsave [{}]",
-            in(reg) self.fxsave_area.as_mut_ptr(),
-            options(nostack)
+        "fxsave [{}]",
+        in(reg) self.fxsave_area.as_mut_ptr(),
+        options(nostack)
         );
 
         core::arch::asm!(
-            "mov {}, dr0",
-            "mov {}, dr1",
-            "mov {}, dr2",
-            "mov {}, dr3",
-            "mov {}, dr6",
-            "mov {}, dr7",
-            out(reg) self.dr0,
-            out(reg) self.dr1,
-            out(reg) self.dr2,
-            out(reg) self.dr3,
-            out(reg) self.dr6,
-            out(reg) self.dr7
+        "mov {}, dr0",
+        "mov {}, dr1",
+        "mov {}, dr2",
+        "mov {}, dr3",
+        "mov {}, dr6",
+        "mov {}, dr7",
+        out(reg) self.dr0,
+        out(reg) self.dr1,
+        out(reg) self.dr2,
+        out(reg) self.dr3,
+        out(reg) self.dr6,
+        out(reg) self.dr7
         );
 
         core::arch::asm!("mov {}, cr2", out(reg) self.cr2);
 
         asm!(
-            "rdpmc",
-            "mov {0}, rax",
-            out(reg) self.pmc0,
-            in("ecx") 0,
-            options(nomem, preserves_flags)
+        "rdpmc",
+        "mov {0}, rax",
+        out(reg) self.pmc0,
+        in("ecx") 0,
+        options(nomem, preserves_flags)
         );
     }
 
@@ -217,33 +217,33 @@ impl ProcessContext {
         self.regs.restore();
 
         core::arch::asm!(
-            "fxrstor [{}]",
-            in(reg) self.fxsave_area.as_ptr(),
-            options(nostack)
+        "fxrstor [{}]",
+        in(reg) self.fxsave_area.as_ptr(),
+        options(nostack)
         );
 
         core::arch::asm!(
-            "mov dr0, {}",
-            "mov dr1, {}",
-            "mov dr2, {}",
-            "mov dr3, {}",
-            "mov dr6, {}",
-            "mov dr7, {}",
-            in(reg) self.dr0,
-            in(reg) self.dr1,
-            in(reg) self.dr2,
-            in(reg) self.dr3,
-            in(reg) self.dr6,
-            in(reg) self.dr7
+        "mov dr0, {}",
+        "mov dr1, {}",
+        "mov dr2, {}",
+        "mov dr3, {}",
+        "mov dr6, {}",
+        "mov dr7, {}",
+        in(reg) self.dr0,
+        in(reg) self.dr1,
+        in(reg) self.dr2,
+        in(reg) self.dr3,
+        in(reg) self.dr6,
+        in(reg) self.dr7
         );
 
         core::arch::asm!("mov cr2, {}", in(reg) self.cr2);
 
         core::arch::asm!(
-            "wrmsr",
-            in("ecx") 0xC1,
-            in("eax") self.pmc0,
-            in("edx") (self.pmc0 >> 32)
+        "wrmsr",
+        in("ecx") 0xC1,
+        in("eax") self.pmc0,
+        in("edx") (self.pmc0 >> 32)
         );
     }
 }
@@ -311,36 +311,36 @@ impl Registers {
     pub fn restore(&self) {
         unsafe {
             asm!(
-                "mov rax, {}",
-                "mov rbx, {}",
-                "mov rcx, {}",
-                "mov rdx, {}",
-                "mov rsi, {}",
-                "mov rdi, {}",
-                "mov rbp, {}",
-                "mov r8, {}",
-                "mov r9, {}",
-                "mov r10, {}",
-                "mov r11, {}",
-                "mov r12, {}",
-                "mov r13, {}",
-                "mov r14, {}",
-                "mov r15, {}",
-                in(reg) self.rax,
-                in(reg) self.rbx,
-                in(reg) self.rcx,
-                in(reg) self.rdx,
-                in(reg) self.rsi,
-                in(reg) self.rdi,
-                in(reg) self.rbp,
-                in(reg) self.r8,
-                in(reg) self.r9,
-                in(reg) self.r10,
-                in(reg) self.r11,
-                in(reg) self.r12,
-                in(reg) self.r13,
-                in(reg) self.r14,
-                in(reg) self.r15,
+            "mov rax, {}",
+            "mov rbx, {}",
+            "mov rcx, {}",
+            "mov rdx, {}",
+            "mov rsi, {}",
+            "mov rdi, {}",
+            "mov rbp, {}",
+            "mov r8, {}",
+            "mov r9, {}",
+            "mov r10, {}",
+            "mov r11, {}",
+            "mov r12, {}",
+            "mov r13, {}",
+            "mov r14, {}",
+            "mov r15, {}",
+            in(reg) self.rax,
+            in(reg) self.rbx,
+            in(reg) self.rcx,
+            in(reg) self.rdx,
+            in(reg) self.rsi,
+            in(reg) self.rdi,
+            in(reg) self.rbp,
+            in(reg) self.r8,
+            in(reg) self.r9,
+            in(reg) self.r10,
+            in(reg) self.r11,
+            in(reg) self.r12,
+            in(reg) self.r13,
+            in(reg) self.r14,
+            in(reg) self.r15,
             );
         }
     }
@@ -348,36 +348,36 @@ impl Registers {
     pub fn save(&mut self) {
         unsafe {
             asm!(
-                "mov {}, rax",
-                "mov {}, rbx",
-                "mov {}, rcx",
-                "mov {}, rdx",
-                "mov {}, rsi",
-                "mov {}, rdi",
-                "mov {}, rbp",
-                "mov {}, r8",
-                "mov {}, r9",
-                "mov {}, r10",
-                "mov {}, r11",
-                "mov {}, r12",
-                "mov {}, r13",
-                "mov {}, r14",
-                "mov {}, r15",
-                out(reg) self.rax,
-                out(reg) self.rbx,
-                out(reg) self.rcx,
-                out(reg) self.rdx,
-                out(reg) self.rsi,
-                out(reg) self.rdi,
-                out(reg) self.rbp,
-                out(reg) self.r8,
-                out(reg) self.r9,
-                out(reg) self.r10,
-                out(reg) self.r11,
-                out(reg) self.r12,
-                out(reg) self.r13,
-                out(reg) self.r14,
-                out(reg) self.r15,
+            "mov {}, rax",
+            "mov {}, rbx",
+            "mov {}, rcx",
+            "mov {}, rdx",
+            "mov {}, rsi",
+            "mov {}, rdi",
+            "mov {}, rbp",
+            "mov {}, r8",
+            "mov {}, r9",
+            "mov {}, r10",
+            "mov {}, r11",
+            "mov {}, r12",
+            "mov {}, r13",
+            "mov {}, r14",
+            "mov {}, r15",
+            out(reg) self.rax,
+            out(reg) self.rbx,
+            out(reg) self.rcx,
+            out(reg) self.rdx,
+            out(reg) self.rsi,
+            out(reg) self.rdi,
+            out(reg) self.rbp,
+            out(reg) self.r8,
+            out(reg) self.r9,
+            out(reg) self.r10,
+            out(reg) self.r11,
+            out(reg) self.r12,
+            out(reg) self.r13,
+            out(reg) self.r14,
+            out(reg) self.r15,
             );
         }
     }
@@ -489,23 +489,21 @@ impl Process {
             x86_64::instructions::interrupts::disable();
 
             asm!(
-                "mov gs:[{0}], rsp",
-                in(reg) TOP_OF_KERNEL_STACK.load(core::sync::atomic::Ordering::SeqCst),
-                options(nostack)
+            "mov gs:[{0}], rsp",
+            in(reg) TOP_OF_KERNEL_STACK.load(core::sync::atomic::Ordering::SeqCst),
+            options(nostack)
             );
 
             asm!(
-                "mov rcx, {}",
-                "mov r11, {}",
-                "mov rsp, {}",
-
-                "swapgs",
-
-                "sysretq",
-                in(reg) user_rip,
-                in(reg) user_rflags,
-                in(reg) user_rsp,
-                options(noreturn)
+            "mov rcx, {}",
+            "mov r11, {}",
+            "mov rsp, {}",
+            "swapgs",
+            "sysretq",
+            in(reg) user_rip,
+            in(reg) user_rflags,
+            in(reg) user_rsp,
+            options(noreturn)
             );
         }
     }
