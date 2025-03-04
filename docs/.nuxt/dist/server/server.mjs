@@ -1,0 +1,1 @@
+export { default } from "file:///C:/Users/maxim/Documents/GitHub/vekos/docs/node_modules/@nuxt/vite-builder/dist/runtime/vite-node.mjs"

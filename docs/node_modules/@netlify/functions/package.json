@@ -1,0 +1,102 @@
+{
+  "name": "@netlify/functions",
+  "main": "./dist/main.js",
+  "types": "./dist/main.d.ts",
+  "type": "commonjs",
+  "exports": {
+    ".": {
+      "require": {
+        "types": "./dist/main.d.ts",
+        "default": "./dist/main.js"
+      },
+      "import": {
+        "types": "./dist/main.d.mts",
+        "default": "./dist/main.mjs"
+      }
+    },
+    "./internal": {
+      "require": {
+        "types": "./dist/internal.d.ts",
+        "default": "./dist/internal.js"
+      },
+      "import": {
+        "types": "./dist/internal.d.mts",
+        "default": "./dist/internal.mjs"
+      }
+    }
+  },
+  "version": "2.8.2",
+  "description": "JavaScript utilities for Netlify Functions",
+  "files": [
+    "dist/**/*.js",
+    "dist/**/*.mjs",
+    "dist/**/*.d.ts",
+    "dist/**/*.d.mts",
+    "internal.d.ts"
+  ],
+  "scripts": {
+    "build": "tsup src --format esm,cjs --dts --clean",
+    "prepare": "husky install node_modules/@netlify/eslint-config-node/.husky/",
+    "prepack": "npm run build",
+    "prepublishOnly": "npm ci && npm test",
+    "test": "run-s format test:dev test:publish",
+    "format": "run-s build format:check-fix:*",
+    "format:ci": "run-s build format:check:*",
+    "format:check-fix:lint": "run-e format:check:lint format:fix:lint",
+    "format:check:lint": "cross-env-shell eslint $npm_package_config_eslint",
+    "format:fix:lint": "cross-env-shell eslint --fix $npm_package_config_eslint",
+    "format:check-fix:prettier": "run-e format:check:prettier format:fix:prettier",
+    "format:check:prettier": "cross-env-shell prettier --check $npm_package_config_prettier",
+    "format:fix:prettier": "cross-env-shell prettier --write $npm_package_config_prettier",
+    "test:dev": "run-s build test:dev:*",
+    "test:ci": "run-s test:ci:*",
+    "test:dev:ava": "ava",
+    "test:dev:tsd": "tsd",
+    "test:publish": "publint && attw --pack",
+    "test:ci:ava": "nyc -r lcovonly -r text -r json ava"
+  },
+  "config": {
+    "eslint": "--ignore-pattern README.md --ignore-path .gitignore --cache --format=codeframe --max-warnings=0 \"{src,scripts,.github,test}/**/*.{ts,js,md,html}\" \"*.{ts,js,md,html}\" \".*.{ts,js,md,html}\"",
+    "prettier": "--ignore-path .gitignore --loglevel=warn \"{src,scripts,.github}/**/*.{ts,js,md,yml,json,html}\" \"*.{ts,js,yml,json,html}\" \".*.{ts,js,yml,json,html}\" \"!**/package-lock.json\" \"!package-lock.json\""
+  },
+  "ava": {
+    "files": [
+      "test/unit/*.js"
+    ],
+    "verbose": true
+  },
+  "tsd": {
+    "directory": "test/types/"
+  },
+  "keywords": [],
+  "license": "MIT",
+  "repository": "https://github.com/netlify/functions",
+  "bugs": {
+    "url": "https://github.com/netlify/functions/issues"
+  },
+  "author": "Netlify Inc.",
+  "directories": {
+    "test": "test"
+  },
+  "dependencies": {
+    "@netlify/serverless-functions-api": "1.26.1"
+  },
+  "devDependencies": {
+    "@arethetypeswrong/cli": "^0.16.0",
+    "@commitlint/cli": "^17.0.0",
+    "@commitlint/config-conventional": "^17.0.0",
+    "@netlify/eslint-config-node": "^7.0.1",
+    "ava": "^2.4.0",
+    "husky": "^7.0.4",
+    "npm-run-all2": "^5.0.0",
+    "nyc": "^15.0.0",
+    "publint": "^0.2.7",
+    "semver": "^7.5.4",
+    "tsd": "^0.31.0",
+    "tsup": "^8.0.2",
+    "typescript": "^4.4.4"
+  },
+  "engines": {
+    "node": ">=14.0.0"
+  }
+}

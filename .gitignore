@@ -1,2 +1,7 @@
 /target
 /.idea
+*.log
+*.tmp
+*.swp
+/node_modules
+/dist

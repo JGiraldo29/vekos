@@ -1,0 +1,128 @@
+#!/usr/bin/env node
+import { defineCommand, runMain } from 'citty';
+import { resolve } from 'pathe';
+import { mkdist } from './index.mjs';
+import 'node:fs/promises';
+import 'defu';
+import 'node:stream';
+import 'node:fs';
+import 'esbuild';
+import 'jiti';
+import 'node:url';
+import 'cssnano';
+import 'autoprefixer';
+import 'postcss';
+import 'postcss-nested';
+import 'mlly';
+import 'node:module';
+import 'pkg-types';
+import 'semver';
+import 'tinyglobby';
+
+const name = "mkdist";
+const version = "1.5.9";
+const description = "Lightweight file-to-file transformer";
+
+const main = defineCommand({
+  meta: {
+    name,
+    version,
+    description
+  },
+  args: {
+    dir: {
+      type: "positional",
+      description: "Project root directory",
+      default: "."
+    },
+    cwd: {
+      type: "string",
+      description: "Current working directory"
+    },
+    src: {
+      type: "string",
+      description: "Source directory relative to project root directory",
+      default: "src"
+    },
+    dist: {
+      type: "string",
+      description: "Destinition directory relative to project root directory",
+      default: "dist"
+    },
+    pattern: {
+      type: "string",
+      description: "Pattern includes or excludes files",
+      default: "**"
+    },
+    format: {
+      type: "string",
+      description: "File format",
+      valueHint: "cjs|esm"
+    },
+    declaration: {
+      type: "boolean",
+      description: "Generate type declaration file",
+      default: false,
+      alias: ["d"]
+    },
+    ext: {
+      type: "string",
+      description: "File extension",
+      valueHint: "mjs|js|ts"
+    },
+    jsx: {
+      type: "string",
+      description: "Specify which JSX runtime to use",
+      valueHint: "transform|preserve|automatic"
+    },
+    jsxFactory: {
+      type: "string",
+      description: "JSX factory",
+      valueHint: "h|React.createElement"
+    },
+    jsxFragment: {
+      type: "string",
+      description: "JSX fragment",
+      valueHint: "Fragment|React.Fragment"
+    },
+    loaders: {
+      type: "string",
+      description: "Loaders",
+      valueHint: "js|vue|sass"
+    },
+    minify: {
+      type: "boolean",
+      description: "Minify output files",
+      default: false
+    },
+    target: {
+      type: "string",
+      description: "Target environment (esbuild)"
+    }
+  },
+  async run({ args }) {
+    const { writtenFiles } = await mkdist({
+      rootDir: resolve(args.cwd || process.cwd(), args.dir),
+      srcDir: args.src,
+      distDir: args.dist,
+      format: args.format,
+      pattern: args.pattern,
+      ext: args.ext,
+      declaration: args.declaration,
+      loaders: args.loaders?.split(","),
+      esbuild: {
+        jsx: args.jsx,
+        jsxFactory: args.jsxFactory,
+        jsxFragment: args.jsxFragment,
+        minify: args.minify,
+        target: args.target
+      }
+    });
+    console.log(writtenFiles.map((f) => `- ${f}`).join("\n"));
+    process.exit(0);
+  }
+});
+runMain(main).catch((error) => {
+  console.error(error);
+  process.exit(1);
+});

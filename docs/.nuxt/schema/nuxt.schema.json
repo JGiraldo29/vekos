@@ -1,0 +1,1004 @@
+{
+  "id": "#",
+  "properties": {
+    "appConfig": {
+      "id": "#appConfig",
+      "properties": {
+        "nuxtIcon": {
+          "title": "Nuxt Icon",
+          "description": "Configure the defaults of Nuxt Icon",
+          "id": "#appConfig/nuxtIcon",
+          "properties": {
+            "size": {
+              "title": "Icon Size",
+              "description": "Set the default icon size. Set to false to disable the sizing of icon in style.",
+              "tags": [
+                "@studioIcon material-symbols:format-size-rounded"
+              ],
+              "tsType": "string | false",
+              "id": "#appConfig/nuxtIcon/size",
+              "default": "1em",
+              "type": "string"
+            },
+            "class": {
+              "title": "CSS Class",
+              "description": "Set the default CSS class",
+              "tags": [
+                "@studioIcon material-symbols:css"
+              ],
+              "id": "#appConfig/nuxtIcon/class",
+              "default": "",
+              "type": "string"
+            },
+            "aliases": {
+              "title": "Icon aliases",
+              "description": "Define Icon aliases to update them easily without code changes.",
+              "tags": [
+                "@studioIcon material-symbols:star-rounded",
+                "@studioInputObjectValueType icon"
+              ],
+              "tsType": "{ [alias: string]: string }",
+              "id": "#appConfig/nuxtIcon/aliases",
+              "default": {},
+              "type": "object"
+            }
+          },
+          "type": "object",
+          "default": {
+            "size": "1em",
+            "class": "",
+            "aliases": {}
+          }
+        },
+        "prose": {
+          "title": "Prose configuration from Nuxt Typography",
+          "description": "",
+          "tags": [
+            "@studioIcon material-symbols:short-text-rounded",
+            "@studioInput icon"
+          ],
+          "id": "#appConfig/prose",
+          "properties": {
+            "copyButton": {
+              "title": "Copy button (used in code blocks)",
+              "description": "",
+              "tags": [
+                "@studioIcon material-symbols:content-copy"
+              ],
+              "id": "#appConfig/prose/copyButton",
+              "properties": {
+                "iconCopy": {
+                  "title": "Icon displayed to copy",
+                  "description": "",
+                  "tags": [],
+                  "id": "#appConfig/prose/copyButton/iconCopy",
+                  "default": "ph:copy",
+                  "type": "string"
+                },
+                "iconCopied": {
+                  "title": "Icon displayed when copied",
+                  "description": "",
+                  "tags": [],
+                  "id": "#appConfig/prose/copyButton/iconCopied",
+                  "default": "ph:check",
+                  "type": "string"
+                }
+              },
+              "type": "object",
+              "default": {
+                "iconCopy": "ph:copy",
+                "iconCopied": "ph:check"
+              }
+            },
+            "headings": {
+              "title": "Default configuration for all headings (h1, h2, h3, h4, h5 and h6)",
+              "description": "",
+              "tags": [
+                "@studioIcon material-symbols:title"
+              ],
+              "id": "#appConfig/prose/headings",
+              "properties": {
+                "icon": {
+                  "title": "Default icon for anchor link on hover",
+                  "description": "",
+                  "tags": [],
+                  "tsType": "string|false",
+                  "id": "#appConfig/prose/headings/icon",
+                  "default": "ph:link",
+                  "type": "string"
+                }
+              },
+              "type": "object",
+              "default": {
+                "icon": "ph:link"
+              }
+            },
+            "h1": {
+              "title": "First heading configuration",
+              "description": "",
+              "tags": [
+                "@studioIcon material-symbols:format-h1"
+              ],
+              "id": "#appConfig/prose/h1",
+              "properties": {
+                "icon": {
+                  "title": "Icon displayed for anchor link on hover",
+                  "description": "",
+                  "tags": [],
+                  "tsType": "string|false",
+                  "id": "#appConfig/prose/h1/icon",
+                  "default": "",
+                  "type": "string"
+                }
+              },
+              "type": "object",
+              "default": {
+                "icon": ""
+              }
+            },
+            "h2": {
+              "title": "Second heading configuration",
+              "description": "",
+              "tags": [
+                "@studioIcon material-symbols:format-h2"
+              ],
+              "id": "#appConfig/prose/h2",
+              "properties": {
+                "icon": {
+                  "title": "Icon displayed for anchor link on hover",
+                  "description": "",
+                  "tags": [],
+                  "tsType": "string|false",
+                  "id": "#appConfig/prose/h2/icon",
+                  "default": "",
+                  "type": "string"
+                }
+              },
+              "type": "object",
+              "default": {
+                "icon": ""
+              }
+            },
+            "h3": {
+              "title": "Third heading configuration",
+              "description": "",
+              "tags": [
+                "@studioIcon material-symbols:format-h3"
+              ],
+              "id": "#appConfig/prose/h3",
+              "properties": {
+                "icon": {
+                  "title": "Icon displayed for anchor link on hover",
+                  "description": "",
+                  "tags": [],
+                  "tsType": "string|false",
+                  "id": "#appConfig/prose/h3/icon",
+                  "default": "",
+                  "type": "string"
+                }
+              },
+              "type": "object",
+              "default": {
+                "icon": ""
+              }
+            },
+            "h4": {
+              "title": "Fourth heading configuration",
+              "description": "",
+              "tags": [
+                "@studioIcon material-symbols:format-h4"
+              ],
+              "id": "#appConfig/prose/h4",
+              "properties": {
+                "icon": {
+                  "title": "Icon displayed for anchor link on hover",
+                  "description": "",
+                  "tags": [],
+                  "tsType": "string|false",
+                  "id": "#appConfig/prose/h4/icon",
+                  "default": "",
+                  "type": "string"
+                }
+              },
+              "type": "object",
+              "default": {
+                "icon": ""
+              }
+            },
+            "h5": {
+              "title": "Fifth heading configuration",
+              "description": "",
+              "tags": [
+                "@studioIcon material-symbols:format-h5"
+              ],
+              "id": "#appConfig/prose/h5",
+              "properties": {
+                "icon": {
+                  "title": "Icon displayed for anchor link on hover",
+                  "description": "",
+                  "tags": [],
+                  "tsType": "string|false",
+                  "id": "#appConfig/prose/h5/icon",
+                  "default": "",
+                  "type": "string"
+                }
+              },
+              "type": "object",
+              "default": {
+                "icon": ""
+              }
+            },
+            "h6": {
+              "title": "Sixth heading configuration",
+              "description": "",
+              "tags": [
+                "@studioIcon material-symbols:format-h6"
+              ],
+              "id": "#appConfig/prose/h6",
+              "properties": {
+                "icon": {
+                  "title": "Icon displayed for anchor link on hover",
+                  "description": "",
+                  "tags": [],
+                  "tsType": "string|false",
+                  "id": "#appConfig/prose/h6/icon",
+                  "default": "",
+                  "type": "string"
+                }
+              },
+              "type": "object",
+              "default": {
+                "icon": ""
+              }
+            }
+          },
+          "type": "object",
+          "default": {
+            "copyButton": {
+              "iconCopy": "ph:copy",
+              "iconCopied": "ph:check"
+            },
+            "headings": {
+              "icon": "ph:link"
+            },
+            "h1": {
+              "icon": ""
+            },
+            "h2": {
+              "icon": ""
+            },
+            "h3": {
+              "icon": ""
+            },
+            "h4": {
+              "icon": ""
+            },
+            "h5": {
+              "icon": ""
+            },
+            "h6": {
+              "icon": ""
+            }
+          }
+        },
+        "docus": {
+          "title": "Docus theme configuration.",
+          "description": "",
+          "tags": [
+            "@studioIcon material-symbols:docs"
+          ],
+          "id": "#appConfig/docus",
+          "properties": {
+            "title": {
+              "title": "Website title, used as header default title and meta title.",
+              "description": "",
+              "tags": [
+                "@studioIcon material-symbols:title"
+              ],
+              "id": "#appConfig/docus/title",
+              "default": "Docus",
+              "type": "string"
+            },
+            "titleTemplate": {
+              "title": "The website title template, to overwrite the default one.",
+              "description": "",
+              "tags": [],
+              "id": "#appConfig/docus/titleTemplate",
+              "default": "%s · Docus",
+              "type": "string"
+            },
+            "description": {
+              "title": "Website description, used for meta description.",
+              "description": "",
+              "tags": [
+                "@studioIcon material-symbols:description"
+              ],
+              "id": "#appConfig/docus/description",
+              "default": "The best place to start your documentation.",
+              "type": "string"
+            },
+            "image": {
+              "title": "Cover image.",
+              "description": "",
+              "tags": [
+                "@example '/cover.jpg'",
+                "@studioIcon dashicons:cover-image",
+                "@studioInput file"
+              ],
+              "id": "#appConfig/docus/image",
+              "default": "https://user-images.githubusercontent.com/904724/185365452-87b7ca7b-6030-4813-a2db-5e65c785bf88.png",
+              "type": "string"
+            },
+            "socials": {
+              "title": "Social links",
+              "description": "Will be used in AppSocialIcons component.",
+              "tags": [
+                "@studioIcon material-symbols:share-outline"
+              ],
+              "id": "#appConfig/docus/socials",
+              "properties": {
+                "twitter": {
+                  "title": "Twitter social handle",
+                  "description": "",
+                  "tags": [
+                    "@example 'nuxt_js'",
+                    "@studioIcon simple-icons:twitter"
+                  ],
+                  "id": "#appConfig/docus/socials/twitter",
+                  "default": "",
+                  "type": "string"
+                },
+                "github": {
+                  "title": "GitHub org or repository",
+                  "description": "",
+                  "tags": [
+                    "@example 'nuxt/framework'",
+                    "@studioIcon simple-icons:github"
+                  ],
+                  "id": "#appConfig/docus/socials/github",
+                  "default": "",
+                  "type": "string"
+                },
+                "facebook": {
+                  "title": "Facebook page url",
+                  "description": "",
+                  "tags": [
+                    "@example https://www.facebook.com/groups/nuxtjs",
+                    "@studioIcon simple-icons:facebook"
+                  ],
+                  "id": "#appConfig/docus/socials/facebook",
+                  "default": "",
+                  "type": "string"
+                },
+                "instagram": {
+                  "title": "Instagram page url",
+                  "description": "",
+                  "tags": [
+                    "@example https://www.instagram.com/wearenuxt",
+                    "@studioIcon simple-icons:instagram"
+                  ],
+                  "id": "#appConfig/docus/socials/instagram",
+                  "default": "",
+                  "type": "string"
+                },
+                "tiktok": {
+                  "title": "Instagram page url",
+                  "description": "",
+                  "tags": [
+                    "@example https://www.youtube.com/@NuxtLabs",
+                    "@studioIcon simple-icons:youtube"
+                  ],
+                  "id": "#appConfig/docus/socials/tiktok",
+                  "default": "",
+                  "type": "string"
+                },
+                "youtube": {
+                  "title": "TikTok page url",
+                  "description": "",
+                  "tags": [
+                    "@example https://www.tiktok.com/@tiktok",
+                    "@studioIcon simple-icons:tiktok"
+                  ],
+                  "id": "#appConfig/docus/socials/youtube",
+                  "default": "",
+                  "type": "string"
+                },
+                "medium": {
+                  "title": "Medium page url",
+                  "description": "",
+                  "tags": [
+                    "@example https://medium.com/nuxt",
+                    "@studioIcon simple-icons:medium"
+                  ],
+                  "id": "#appConfig/docus/socials/medium",
+                  "default": "",
+                  "type": "string"
+                }
+              },
+              "type": "object",
+              "default": {
+                "twitter": "",
+                "github": "",
+                "facebook": "",
+                "instagram": "",
+                "tiktok": "",
+                "youtube": "",
+                "medium": ""
+              }
+            },
+            "layout": {
+              "title": "Theme layout configuration.",
+              "description": "",
+              "tags": [
+                "@studioIcon tabler:arrow-autofit-width"
+              ],
+              "tsType": "'default'|'page'",
+              "id": "#appConfig/docus/layout",
+              "default": "default",
+              "type": "string"
+            },
+            "aside": {
+              "title": "Aside navigation configuration.",
+              "description": "",
+              "tags": [
+                "@studioIcon fluent:document-page-24-regular"
+              ],
+              "id": "#appConfig/docus/aside",
+              "properties": {
+                "level": {
+                  "title": "Aside navigation level",
+                  "description": "Use 0 to disable all nesting. Use 1 and more to display nested navigation in header and aside navigation.",
+                  "tags": [],
+                  "id": "#appConfig/docus/aside/level",
+                  "default": 0,
+                  "type": "number"
+                },
+                "collapsed": {
+                  "title": "Specify if default collapsibles state globally for aside navigation.",
+                  "description": "",
+                  "tags": [],
+                  "id": "#appConfig/docus/aside/collapsed",
+                  "default": false,
+                  "type": "boolean"
+                },
+                "exclude": {
+                  "title": "Paths to be excluded from aside navigation.",
+                  "description": "",
+                  "tags": [],
+                  "tsType": "string[]",
+                  "id": "#appConfig/docus/aside/exclude",
+                  "default": [],
+                  "type": "array",
+                  "items": {
+                    "type": "any"
+                  }
+                }
+              },
+              "type": "object",
+              "default": {
+                "level": 0,
+                "collapsed": false,
+                "exclude": []
+              }
+            },
+            "header": {
+              "title": "Header configuration.",
+              "description": "",
+              "tags": [
+                "@studioIcon fluent:document-header-24-regular"
+              ],
+              "id": "#appConfig/docus/header",
+              "properties": {
+                "title": {
+                  "title": "Website title",
+                  "description": "Title to be displayed in header or as aria-label if logo is defined.\nDefault to docus.title",
+                  "tags": [
+                    "@studioIcon material-symbols:title"
+                  ],
+                  "id": "#appConfig/docus/header/title",
+                  "default": "",
+                  "type": "string"
+                },
+                "logo": {
+                  "title": "Logo configuration",
+                  "description": "Boolean to disable or use the `Logo.vue` component.\nString to be used as a name of a component.\nObject that sets the light and dark logos.",
+                  "tags": [
+                    "@example 'MyLogo'",
+                    "@studioInput boolean"
+                  ],
+                  "tsType": "boolean|string|{dark: string, light: string}",
+                  "id": "#appConfig/docus/header/logo",
+                  "default": false,
+                  "type": "boolean"
+                },
+                "showLinkIcon": {
+                  "title": "Header links",
+                  "description": "Toggle links icons in the header.",
+                  "tags": [],
+                  "id": "#appConfig/docus/header/showLinkIcon",
+                  "default": false,
+                  "type": "boolean"
+                },
+                "exclude": {
+                  "title": "Paths to be excluded from header links.",
+                  "description": "",
+                  "tags": [],
+                  "tsType": "string[]",
+                  "id": "#appConfig/docus/header/exclude",
+                  "default": [],
+                  "type": "array",
+                  "items": {
+                    "type": "any"
+                  }
+                },
+                "fluid": {
+                  "title": "Makes the content of the header fluid.",
+                  "description": "",
+                  "tags": [],
+                  "id": "#appConfig/docus/header/fluid",
+                  "default": false,
+                  "type": "boolean"
+                }
+              },
+              "type": "object",
+              "default": {
+                "title": "",
+                "logo": false,
+                "showLinkIcon": false,
+                "exclude": [],
+                "fluid": false
+              }
+            },
+            "main": {
+              "title": "Main content configuration.",
+              "description": "",
+              "tags": [
+                "@studioIcon fluent:document-header-footer-24-filled"
+              ],
+              "id": "#appConfig/docus/main",
+              "properties": {
+                "fluid": {
+                  "title": "Makes the content of the main container fluid.",
+                  "description": "",
+                  "tags": [],
+                  "id": "#appConfig/docus/main/fluid",
+                  "default": false,
+                  "type": "boolean"
+                },
+                "padded": {
+                  "title": "Makes the content of the main container padded.",
+                  "description": "",
+                  "tags": [],
+                  "id": "#appConfig/docus/main/padded",
+                  "default": true,
+                  "type": "boolean"
+                }
+              },
+              "type": "object",
+              "default": {
+                "fluid": false,
+                "padded": true
+              }
+            },
+            "footer": {
+              "title": "Footer configuration",
+              "description": "",
+              "tags": [
+                "@studioIcon fluent:document-footer-24-regular"
+              ],
+              "id": "#appConfig/docus/footer",
+              "properties": {
+                "credits": {
+                  "title": "Website credits configuration.",
+                  "description": "",
+                  "tags": [
+                    "@studioIcon material-symbols:copyright"
+                  ],
+                  "tsType": "false|{icon: string, text: string, href: string}",
+                  "id": "#appConfig/docus/footer/credits",
+                  "properties": {
+                    "icon": {
+                      "title": "Icon to show on credits",
+                      "description": "",
+                      "tags": [
+                        "@formtype Icon"
+                      ],
+                      "id": "#appConfig/docus/footer/credits/icon",
+                      "default": "IconDocus",
+                      "type": "string"
+                    },
+                    "text": {
+                      "type": "string",
+                      "id": "#appConfig/docus/footer/credits/text",
+                      "default": "Powered by Docus"
+                    },
+                    "href": {
+                      "type": "string",
+                      "id": "#appConfig/docus/footer/credits/href",
+                      "default": "https://docus.dev"
+                    }
+                  },
+                  "type": "object",
+                  "default": {
+                    "icon": "IconDocus",
+                    "text": "Powered by Docus",
+                    "href": "https://docus.dev"
+                  }
+                },
+                "textLinks": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "required": [
+                      "text",
+                      "href"
+                    ],
+                    "properties": {
+                      "href": {
+                        "type": "string",
+                        "description": "URL when clicking the link"
+                      },
+                      "text": {
+                        "type": "string",
+                        "description": "Text of the link"
+                      },
+                      "target": {
+                        "type": "string",
+                        "description": "Target attribute of the link"
+                      },
+                      "rel": {
+                        "type": "string",
+                        "description": "Rel attribute of the link"
+                      }
+                    }
+                  },
+                  "title": "Text links",
+                  "description": "Will be added into center section of the footer.",
+                  "tags": [
+                    "@studioIcon material-symbols:add-link"
+                  ],
+                  "id": "#appConfig/docus/footer/textLinks"
+                },
+                "iconLinks": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "required": [
+                      "icon",
+                      "href"
+                    ],
+                    "properties": {
+                      "icon": {
+                        "type": "string",
+                        "description": "Icon name"
+                      },
+                      "href": {
+                        "type": "string",
+                        "description": "Link when clicking on the icon"
+                      },
+                      "label": {
+                        "type": "string",
+                        "description": "Label of the icon"
+                      },
+                      "rel": {
+                        "type": "string",
+                        "description": "Rel attribute of the link"
+                      }
+                    }
+                  },
+                  "title": "Icon links",
+                  "description": "Icons to be added to Social Icons in footer.",
+                  "tags": [
+                    "@studioIcon material-symbols:add-link"
+                  ],
+                  "id": "#appConfig/docus/footer/iconLinks"
+                },
+                "fluid": {
+                  "title": "Makes the content of the footer fluid.",
+                  "description": "",
+                  "tags": [],
+                  "id": "#appConfig/docus/footer/fluid",
+                  "default": true,
+                  "type": "boolean"
+                }
+              },
+              "type": "object",
+              "default": {
+                "credits": {
+                  "icon": "IconDocus",
+                  "text": "Powered by Docus",
+                  "href": "https://docus.dev"
+                },
+                "fluid": true
+              }
+            },
+            "github": {
+              "title": "GitHub integration",
+              "description": "Configure the Edit on Github integration.",
+              "tags": [
+                "@studioIcon simple-icons:github"
+              ],
+              "id": "#appConfig/docus/github",
+              "properties": {
+                "baseUrl": {
+                  "title": "Base URL",
+                  "description": "You can use this to link to GitHub Enterprise.",
+                  "tags": [],
+                  "id": "#appConfig/docus/github/baseUrl",
+                  "default": "https://github.com",
+                  "type": "string"
+                },
+                "dir": {
+                  "title": "Directory",
+                  "description": "Your GitHub repository root directory.",
+                  "tags": [],
+                  "id": "#appConfig/docus/github/dir",
+                  "default": "",
+                  "type": "string"
+                },
+                "branch": {
+                  "title": "Branch",
+                  "description": "Your GitHub repository branch.",
+                  "tags": [],
+                  "id": "#appConfig/docus/github/branch",
+                  "default": "",
+                  "type": "string"
+                },
+                "repo": {
+                  "title": "Repository",
+                  "description": "Your GitHub repository name.",
+                  "tags": [],
+                  "id": "#appConfig/docus/github/repo",
+                  "default": "",
+                  "type": "string"
+                },
+                "owner": {
+                  "title": "Owner",
+                  "description": "Your GitHub repository owner.",
+                  "tags": [],
+                  "id": "#appConfig/docus/github/owner",
+                  "default": "",
+                  "type": "string"
+                },
+                "edit": {
+                  "title": "EditOnGithub",
+                  "description": "Display EditOnGithub button.",
+                  "tags": [],
+                  "id": "#appConfig/docus/github/edit",
+                  "default": false,
+                  "type": "boolean"
+                }
+              },
+              "type": "object",
+              "default": {
+                "baseUrl": "https://github.com",
+                "dir": "",
+                "branch": "",
+                "repo": "",
+                "owner": "",
+                "edit": false
+              }
+            }
+          },
+          "type": "object",
+          "default": {
+            "title": "Docus",
+            "titleTemplate": "%s · Docus",
+            "description": "The best place to start your documentation.",
+            "image": "https://user-images.githubusercontent.com/904724/185365452-87b7ca7b-6030-4813-a2db-5e65c785bf88.png",
+            "socials": {
+              "twitter": "",
+              "github": "",
+              "facebook": "",
+              "instagram": "",
+              "tiktok": "",
+              "youtube": "",
+              "medium": ""
+            },
+            "layout": "default",
+            "aside": {
+              "level": 0,
+              "collapsed": false,
+              "exclude": []
+            },
+            "header": {
+              "title": "",
+              "logo": false,
+              "showLinkIcon": false,
+              "exclude": [],
+              "fluid": false
+            },
+            "main": {
+              "fluid": false,
+              "padded": true
+            },
+            "footer": {
+              "credits": {
+                "icon": "IconDocus",
+                "text": "Powered by Docus",
+                "href": "https://docus.dev"
+              },
+              "fluid": true
+            },
+            "github": {
+              "baseUrl": "https://github.com",
+              "dir": "",
+              "branch": "",
+              "repo": "",
+              "owner": "",
+              "edit": false
+            }
+          }
+        }
+      },
+      "type": "object",
+      "default": {
+        "nuxtIcon": {
+          "size": "1em",
+          "class": "",
+          "aliases": {}
+        },
+        "prose": {
+          "copyButton": {
+            "iconCopy": "ph:copy",
+            "iconCopied": "ph:check"
+          },
+          "headings": {
+            "icon": "ph:link"
+          },
+          "h1": {
+            "icon": ""
+          },
+          "h2": {
+            "icon": ""
+          },
+          "h3": {
+            "icon": ""
+          },
+          "h4": {
+            "icon": ""
+          },
+          "h5": {
+            "icon": ""
+          },
+          "h6": {
+            "icon": ""
+          }
+        },
+        "docus": {
+          "title": "Docus",
+          "titleTemplate": "%s · Docus",
+          "description": "The best place to start your documentation.",
+          "image": "https://user-images.githubusercontent.com/904724/185365452-87b7ca7b-6030-4813-a2db-5e65c785bf88.png",
+          "socials": {
+            "twitter": "",
+            "github": "",
+            "facebook": "",
+            "instagram": "",
+            "tiktok": "",
+            "youtube": "",
+            "medium": ""
+          },
+          "layout": "default",
+          "aside": {
+            "level": 0,
+            "collapsed": false,
+            "exclude": []
+          },
+          "header": {
+            "title": "",
+            "logo": false,
+            "showLinkIcon": false,
+            "exclude": [],
+            "fluid": false
+          },
+          "main": {
+            "fluid": false,
+            "padded": true
+          },
+          "footer": {
+            "credits": {
+              "icon": "IconDocus",
+              "text": "Powered by Docus",
+              "href": "https://docus.dev"
+            },
+            "fluid": true
+          },
+          "github": {
+            "baseUrl": "https://github.com",
+            "dir": "",
+            "branch": "",
+            "repo": "",
+            "owner": "",
+            "edit": false
+          }
+        }
+      }
+    }
+  },
+  "type": "object",
+  "default": {
+    "appConfig": {
+      "nuxtIcon": {
+        "size": "1em",
+        "class": "",
+        "aliases": {}
+      },
+      "prose": {
+        "copyButton": {
+          "iconCopy": "ph:copy",
+          "iconCopied": "ph:check"
+        },
+        "headings": {
+          "icon": "ph:link"
+        },
+        "h1": {
+          "icon": ""
+        },
+        "h2": {
+          "icon": ""
+        },
+        "h3": {
+          "icon": ""
+        },
+        "h4": {
+          "icon": ""
+        },
+        "h5": {
+          "icon": ""
+        },
+        "h6": {
+          "icon": ""
+        }
+      },
+      "docus": {
+        "title": "Docus",
+        "titleTemplate": "%s · Docus",
+        "description": "The best place to start your documentation.",
+        "image": "https://user-images.githubusercontent.com/904724/185365452-87b7ca7b-6030-4813-a2db-5e65c785bf88.png",
+        "socials": {
+          "twitter": "",
+          "github": "",
+          "facebook": "",
+          "instagram": "",
+          "tiktok": "",
+          "youtube": "",
+          "medium": ""
+        },
+        "layout": "default",
+        "aside": {
+          "level": 0,
+          "collapsed": false,
+          "exclude": []
+        },
+        "header": {
+          "title": "",
+          "logo": false,
+          "showLinkIcon": false,
+          "exclude": [],
+          "fluid": false
+        },
+        "main": {
+          "fluid": false,
+          "padded": true
+        },
+        "footer": {
+          "credits": {
+            "icon": "IconDocus",
+            "text": "Powered by Docus",
+            "href": "https://docus.dev"
+          },
+          "fluid": true
+        },
+        "github": {
+          "baseUrl": "https://github.com",
+          "dir": "",
+          "branch": "",
+          "repo": "",
+          "owner": "",
+          "edit": false
+        }
+      }
+    }
+  }
+}
