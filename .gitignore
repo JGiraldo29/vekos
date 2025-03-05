@@ -3,6 +3,6 @@
 *.log
 *.tmp
 *.swp
-/node_modules
+*node_modules
 /dist
 /.nuxt
