@@ -5,3 +5,4 @@
 *.swp
 /node_modules
 /dist
+/.nuxt
