@@ -1,0 +1,85 @@
+{
+  "name": "@nuxt/telemetry",
+  "version": "2.6.5",
+  "repository": "nuxt/telemetry",
+  "license": "MIT",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/types.d.mts",
+      "import": "./dist/module.mjs",
+      "require": "./dist/module.cjs"
+    }
+  },
+  "main": "./dist/module.cjs",
+  "types": "./dist/types.d.mts",
+  "typesVersions": {
+    "*": {
+      ".": [
+        "./dist/types.d.cts"
+      ]
+    }
+  },
+  "bin": {
+    "nuxt-telemetry": "./bin/nuxt-telemetry.mjs"
+  },
+  "files": [
+    "dist",
+    "bin"
+  ],
+  "dependencies": {
+    "@nuxt/kit": "^3.15.4",
+    "citty": "^0.1.6",
+    "consola": "^3.4.0",
+    "destr": "^2.0.3",
+    "dotenv": "^16.4.7",
+    "git-url-parse": "^16.0.0",
+    "is-docker": "^3.0.0",
+    "ofetch": "^1.4.1",
+    "package-manager-detector": "^0.2.9",
+    "parse-git-config": "^3.0.0",
+    "pathe": "^2.0.2",
+    "rc9": "^2.1.2",
+    "std-env": "^3.8.0"
+  },
+  "devDependencies": {
+    "@nuxt/eslint-config": "^1.0.1",
+    "@nuxt/module-builder": "^1.0.0-alpha.1",
+    "@nuxt/schema": "^3.15.4",
+    "@nuxt/test-utils": "^3.15.4",
+    "@types/git-url-parse": "^9.0.3",
+    "@types/parse-git-config": "^3.0.4",
+    "@vitest/coverage-v8": "^3.0.5",
+    "changelogen": "^0.5.7",
+    "eslint": "^9.20.0",
+    "get-port-please": "^3.1.2",
+    "h3": "^1.15.0",
+    "installed-check": "^9.3.0",
+    "knip": "^5.44.0",
+    "nuxt": "^3.15.4",
+    "typescript": "^5.7.3",
+    "unbuild": "^3.3.1",
+    "vitest": "^3.0.5",
+    "vue-tsc": "^2.2.0"
+  },
+  "resolutions": {
+    "@nuxt/telemetry": "workspace:*"
+  },
+  "engines": {
+    "node": ">=18.12.0"
+  },
+  "scripts": {
+    "build": "nuxt-module-build build",
+    "dev": "NUXT_TELEMETRY_DEBUG=1 nuxi dev playground",
+    "dev:build": "NUXT_TELEMETRY_DEBUG=1 nuxi build playground",
+    "dev:generate": "NUXT_TELEMETRY_DEBUG=1 nuxi generate playground",
+    "dev:prepare": "nuxt-module-build build --stub && nuxt-module-build prepare && nuxi prepare playground",
+    "lint": "eslint .",
+    "nuxt-telemetry": "node ./bin/nuxt-telemetry.mjs",
+    "release": "pnpm test && pnpm build && pnpm changelogen --release --push && pnpm publish",
+    "test": "vitest run",
+    "test:engines": "installed-check -d --no-workspaces",
+    "test:knip": "knip",
+    "test:types": "nuxt-module-build prepare && nuxi prepare playground && vue-tsc --noEmit"
+  }
+}

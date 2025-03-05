@@ -1,0 +1,60 @@
+{
+  "name": "nypm",
+  "version": "0.4.1",
+  "description": "Unified Package Manager for Node.js",
+  "repository": "unjs/nypm",
+  "license": "MIT",
+  "sideEffects": false,
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "bin": {
+    "nypm": "./dist/cli.mjs"
+  },
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "dependencies": {
+    "citty": "^0.1.6",
+    "consola": "^3.2.3",
+    "pathe": "^1.1.2",
+    "tinyexec": "^0.3.1",
+    "pkg-types": "^1.2.1",
+    "ufo": "^1.5.4"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "@vitest/coverage-v8": "^2.1.6",
+    "automd": "^0.3.12",
+    "changelogen": "^0.5.7",
+    "eslint": "^9.15.0",
+    "eslint-config-unjs": "^0.4.2",
+    "jiti": "^2.4.0",
+    "prettier": "^3.4.1",
+    "std-env": "^3.8.0",
+    "typescript": "^5.7.2",
+    "unbuild": "^2.0.0",
+    "vitest": "^2.1.6"
+  },
+  "engines": {
+    "node": "^14.16.0 || >=16.10.0"
+  },
+  "scripts": {
+    "build": "automd && unbuild",
+    "dev": "vitest dev",
+    "lint": "eslint . && prettier -c src test",
+    "lint:fix": "eslint . --fix && prettier -w src test",
+    "nypm": "jiti src/cli.ts",
+    "release": "pnpm test && pnpm build && changelogen --release --push && pnpm publish",
+    "test": "pnpm lint && pnpm test:types && vitest run --coverage",
+    "test:types": "tsc --noEmit"
+  }
+}

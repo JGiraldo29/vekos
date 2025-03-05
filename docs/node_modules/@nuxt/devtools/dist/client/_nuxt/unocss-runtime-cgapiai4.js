@@ -1,0 +1,1 @@
+import{g as e,k as s}from"./vendor/unocss-f0kk6o39.js";e({defaults:{presets:[s({prefix:["i-",""],collections:{},cdn:"https://esm.sh/",scale:1.2,extraProperties:{display:"inline-block","vertical-align":"middle"}})]},bypassDefined:!0});

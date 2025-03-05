@@ -1,0 +1,1 @@
+export { default } from "/workspaces/vekos/docs/node_modules/@nuxt-themes/elements/components/globals/NuxtImg.vue"
