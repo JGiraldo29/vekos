@@ -147,7 +147,7 @@ Apache-2.0 license
 
 ## Contact
 
-jgiraldonocua@gmail.com
+Juan Miguel Giraldo - `jgiraldo29@proton.me`
 
 ---
 
