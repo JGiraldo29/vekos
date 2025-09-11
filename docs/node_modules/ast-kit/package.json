@@ -1,0 +1,64 @@
+{
+  "name": "ast-kit",
+  "version": "1.4.0",
+  "description": "A toolkit for easy Babel AST generation and manipulation.",
+  "type": "module",
+  "license": "MIT",
+  "homepage": "https://github.com/sxzz/ast-kit#readme",
+  "bugs": {
+    "url": "https://github.com/sxzz/ast-kit/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sxzz/ast-kit.git"
+  },
+  "files": [
+    "dist"
+  ],
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "require": "./dist/index.cjs",
+      "import": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "dependencies": {
+    "@babel/parser": "^7.26.5",
+    "pathe": "^2.0.2"
+  },
+  "devDependencies": {
+    "@babel/types": "^7.26.5",
+    "@sxzz/eslint-config": "^4.6.0",
+    "@sxzz/prettier-config": "^2.0.2",
+    "@types/node": "^22.10.7",
+    "@vitest/coverage-v8": "^3.0.2",
+    "@vitest/ui": "^3.0.2",
+    "bumpp": "^9.10.1",
+    "eslint": "^9.18.0",
+    "estree-walker": "^3.0.3",
+    "fast-glob": "^3.3.3",
+    "prettier": "^3.4.2",
+    "tsup": "^8.3.5",
+    "tsx": "^4.19.2",
+    "typescript": "5.7.3",
+    "vitest": "^3.0.2"
+  },
+  "engines": {
+    "node": ">=16.14.0"
+  },
+  "prettier": "@sxzz/prettier-config",
+  "scripts": {
+    "lint": "eslint .",
+    "lint:fix": "pnpm run lint --fix",
+    "build": "tsup",
+    "test": "vitest",
+    "release": "bumpp && pnpm publish",
+    "typecheck": "tsc --noEmit"
+  }
+}

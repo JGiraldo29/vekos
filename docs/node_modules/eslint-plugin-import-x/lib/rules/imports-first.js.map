@@ -1,0 +1,1 @@
+{"version":3,"file":"imports-first.js","sourceRoot":"","sources":["../../src/rules/imports-first.ts"],"names":[],"mappings":";;AAAA,oCAAqC;AAErC,4DAA2B;AAE3B,iBAAS,IAAA,kBAAU,EAAC;IAClB,GAAG,eAAK;IACR,IAAI,EAAE,eAAe;IACrB,IAAI,EAAE;QACJ,GAAG,eAAK,CAAC,IAAI;QACb,UAAU,EAAE,IAAI;QAChB,IAAI,EAAE;YACJ,QAAQ,EAAE,aAAa;YACvB,WAAW,EAAE,+BAA+B;SAC7C;KACF;CACF,CAAC,CAAA"}

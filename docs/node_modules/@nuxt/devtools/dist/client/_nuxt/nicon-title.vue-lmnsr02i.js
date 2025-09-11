@@ -1,0 +1,1 @@
+import{k as t,Q as s,S as o,Y as a,W as n,V as r,U as l,a5 as i}from"./vendor/json-editor-vue-gv8v06ez.js";const c={flex:"~ gap-3","items-center":""},u=t({__name:"NIconTitle",props:{icon:{},text:{}},setup(p){return(e,m)=>(s(),o("div",c,[e.icon?(s(),o("div",{key:0,class:a(e.icon)},null,2)):n("",!0),r(e.$slots,"default",{},()=>[l("div",null,i(e.text),1)])]))}});export{u as _};

@@ -1,0 +1,66 @@
+{
+  "version": "0.9.5",
+  "name": "@nuxt-themes/elements",
+  "type": "module",
+  "main": "./nuxt.config.ts",
+  "files": [
+    "components",
+    "app.config.ts",
+    "nuxt.config.ts",
+    "tokens.config.ts"
+  ],
+  "scripts": {
+    "prepare": "nuxi prepare docs",
+    "dev": "nuxi dev docs",
+    "build": "nuxi build docs",
+    "generate": "nuxi generate docs",
+    "preview": "nuxi preview docs",
+    "play": "nuxi dev playground",
+    "lint": "eslint .",
+    "release": "release-it"
+  },
+  "dependencies": {
+    "@nuxt-themes/tokens": "^1.9.1",
+    "@vueuse/core": "^9.13.0"
+  },
+  "devDependencies": {
+    "@nuxt-themes/docus": "^1.10.1",
+    "@nuxt/content": "^2.5.2",
+    "@nuxt/kit": "^3.3.3",
+    "nuxt": "^3.3.3",
+    "postcss": "^8.4.21",
+    "release-it": "^15.10.1",
+    "vue": "^3.2.47"
+  },
+  "pnpm": {
+    "peerDependencyRules": {
+      "allowedVersions": {
+        "axios": "0.25.0"
+      },
+      "ignoreMissing": [
+        "postcss",
+        "postcss-*",
+        "webpack",
+        "axios",
+        "@algolia/client-search"
+      ]
+    }
+  },
+  "release-it": {
+    "hooks": {
+      "before:init": [
+        "pnpm build"
+      ]
+    },
+    "npm": {
+      "access": "public"
+    },
+    "git": {
+      "commitMessage": "chore(release): release v${version}"
+    },
+    "github": {
+      "release": true,
+      "releaseName": "v${version}"
+    }
+  }
+}

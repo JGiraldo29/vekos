@@ -1,0 +1,25 @@
+{
+    "name": "@types/parse-path",
+    "version": "7.0.3",
+    "description": "TypeScript definitions for parse-path",
+    "homepage": "https://github.com/DefinitelyTyped/DefinitelyTyped/tree/master/types/parse-path",
+    "license": "MIT",
+    "contributors": [
+        {
+            "name": "Florian Keller",
+            "githubUsername": "ffflorian",
+            "url": "https://github.com/ffflorian"
+        }
+    ],
+    "main": "",
+    "types": "index.d.ts",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/DefinitelyTyped/DefinitelyTyped.git",
+        "directory": "types/parse-path"
+    },
+    "scripts": {},
+    "dependencies": {},
+    "typesPublisherContentHash": "5c1ea668ece4db84f13651164051ceed7fc88396326015d0473e9768f1bc3b40",
+    "typeScriptVersion": "4.5"
+}
